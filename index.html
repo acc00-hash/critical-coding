@@ -23,30 +23,20 @@ h2 { font-size: 18px; margin: 32px 0 12px; }
 #status.ok::before { background: var(--ok); }
 #status.warn::before { background: var(--warn); }
 
-/* ---- Screens: links die 4er-Wand, rechts die vier Einzelpanels ---- */
-.screens { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: min(100%, 70vh); margin: 0 auto; align-items: start; }
-.col { display: grid; gap: 10px; }
-.screen { position: relative; display: block; width: 100%; padding: 0; background: #000; border: 1px solid var(--line); border-radius: 0; }
-.screen:hover { border-color: var(--mute); }
-.screen.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-.screen.over { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok); }
+.screen { position: relative; background: #000; border: 1px solid var(--line);
+  width: min(100%, calc(70vh * var(--ratio, .5))); margin: 0 auto; }
 .screen canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
 /* LED-Raster */
 .screen::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(circle at center, transparent 38%, rgba(0,0,0,.85) 66%);
   background-size: calc(100% / var(--cols)) calc(100% / var(--rows)); }
-/* Trennlinien zwischen den gestapelten Panels */
-.screen.stack::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+/* Trennlinien zwischen den Panels */
+.screen::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: linear-gradient(to bottom, transparent calc(100% - 3px), var(--bg) calc(100% - 3px));
   background-size: 100% calc(100% / var(--panels)); }
-.screen .lbl { position: absolute; top: 4px; left: 4px; z-index: 2; padding: 0 6px; font: 10px/1.6 "Pixelmix", monospace;
-  background: rgba(0,0,0,.75); color: var(--text); border-radius: 3px; pointer-events: none; }
-.screen.active .lbl { background: var(--accent); }
-.howto { text-align: center; color: var(--mute); font-size: 13px; margin: 10px 0 0; }
 
 .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-top: 14px; }
 label { display: grid; gap: 4px; color: var(--mute); font-size: 13px; }
-label.check { grid-auto-flow: column; align-items: center; gap: 8px; color: var(--text); }
 input, select, button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); padding: 8px 10px; border-radius: 4px; }
 input[type=text] { width: 17em; }
 input[type=number] { width: 5em; }
@@ -54,21 +44,17 @@ button { cursor: pointer; }
 button:hover { border-color: var(--mute); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-#hint, #layoutWarn { display: none; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--warn); font-size: 13px; }
-#hint.show, #layoutWarn.show { display: block; }
-#chainInfo { color: var(--mute); font-size: 13px; margin: 10px 0 0; }
+#hint { display: none; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--warn); font-size: 13px; }
+#hint.show { display: block; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .tile { position: relative; padding: 0; background: var(--surface); border: 1px solid var(--line); text-align: left; overflow: hidden; }
-.tile[draggable=true] { cursor: grab; }
 .pick { display: block; width: 100%; padding: 0; border: 0; border-radius: 0; background: none; text-align: left; }
-.tile img, .tile video { display: block; width: 100%; height: 100px; object-fit: cover; background: #000; pointer-events: none; }
-.tile .name { display: block; padding: 6px 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile img, .tile video { display: block; width: 100%; height: 100px; object-fit: cover; background: #000; }
+.tile span { display: block; padding: 6px 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .tile .del { position: absolute; top: 4px; right: 4px; padding: 0 7px; background: rgba(0,0,0,.7); line-height: 1.5; }
-.tile .tags { position: absolute; top: 4px; left: 4px; display: flex; flex-wrap: wrap; gap: 3px; max-width: calc(100% - 40px); pointer-events: none; }
-.tile .tags span { padding: 0 6px; font: 10px/1.6 "Pixelmix", monospace; background: rgba(0,0,0,.7); border-radius: 3px; }
-.tile .tags .on { background: var(--accent); }
+.tile .kind { position: absolute; top: 4px; left: 4px; padding: 0 6px; font: 10px/1.6 "Pixelmix", monospace; background: rgba(0,0,0,.7); border-radius: 3px; }
 .add { display: grid; place-items: center; min-height: 130px; border: 1px dashed var(--mute); color: var(--mute); background: none; text-align: center; padding: 12px; }
 body.drag .add { border-color: var(--accent); color: var(--text); }
 #empty { color: var(--mute); }
@@ -81,11 +67,7 @@ body.drag .add { border-color: var(--accent); color: var(--text); }
     <div id="status" role="status">nicht verbunden</div>
   </header>
 
-  <div class="screens">
-    <div class="col" id="colBig"></div>
-    <div class="col" id="colSmall"></div>
-  </div>
-  <p class="howto">Screen anklicken, dann unten ein Medium wählen – oder ein Medium direkt auf einen Screen ziehen.</p>
+  <div class="screen" id="screen"><canvas id="c"></canvas></div>
 
   <div class="row">
     <label>Anpassung
@@ -95,9 +77,8 @@ body.drag .add { border-color: var(--accent); color: var(--text); }
         <option value="stretch">Strecken</option>
       </select>
     </label>
-    <label class="check"><input type="checkbox" id="pixel"> Pixelig (ohne Glättung)</label>
-    <button id="black">Gewählten Screen schwarz</button>
-    <button id="blackAll">Alle schwarz</button>
+    <label style="grid-auto-flow:column;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="pixel"> Pixelig (ohne Glättung)</label>
+    <button id="black">Wand schwarz schalten</button>
   </div>
 
   <h2>Medien</h2>
@@ -108,6 +89,8 @@ body.drag .add { border-color: var(--accent); color: var(--text); }
   <h2>Verbindung</h2>
   <div class="row" style="margin-top:0">
     <label>Adresse des LED-Servers <input type="text" id="addr" spellcheck="false"></label>
+    <label>Anzahl Panels (je 64 × 32) <input type="number" id="chain" min="1" max="16"></label>
+    <label style="grid-auto-flow:column;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="rev"> Unterstes Panel ist das erste in der Kette</label>
     <button id="connect">Neu verbinden</button>
   </div>
   <div id="hint">
@@ -115,84 +98,39 @@ body.drag .add { border-color: var(--accent); color: var(--text); }
     Schloss-Symbol in der Adressleiste → Website-Einstellungen → «Unsichere Inhalte» auf «Zulassen» stellen,
     Seite neu laden. Fragt Chrome nach Zugriff auf das lokale Netzwerk, erlaube ihn.
   </div>
-
-  <h2>Position in der Kette</h2>
-  <p style="color:var(--mute);font-size:13px;margin:0">An welcher Stelle der Datenleitung hängt welches Panel? 1 = erstes Panel nach dem Raspberry Pi.</p>
-  <div class="row" id="layout"></div>
-  <p id="chainInfo"></p>
-  <div id="layoutWarn"></div>
 </main>
 
 <script type="module" src="libraries/zeromq.bundle.js"></script>
 <script type="module">
 const $ = s => document.querySelector(s);
 const PANEL_W = 64, PANEL_H = 32;
-const ls = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
-const save = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
-
-// ---- Die fünf Screens ----
-const SCREENS = [
-  { id: "wand", name: "4er-Wand", short: "4er", panels: 4 },
-  { id: "e1", name: "Einzel 1", short: "E1", panels: 1 },
-  { id: "e2", name: "Einzel 2", short: "E2", panels: 1 },
-  { id: "e3", name: "Einzel 3", short: "E3", panels: 1 },
-  { id: "e4", name: "Einzel 4", short: "E4", panels: 1 },
-];
-// Standard: 4er-Wand belegt Kettenplätze 1–4 (oben → unten), Einzelpanels 5–8
-const DEFAULT_LAYOUT = { wand: { start: 1, rev: false }, e1: { start: 5 }, e2: { start: 6 }, e3: { start: 7 }, e4: { start: 8 } };
-let layout;
-try { layout = { ...DEFAULT_LAYOUT, ...JSON.parse(ls("led-layout", "{}")) }; } catch { layout = { ...DEFAULT_LAYOUT }; }
-if (ls("led-rev", null) === "1" && !ls("led-layout", null)) layout.wand.rev = true; // alte Einstellung übernehmen
+const ls = (k, d) => localStorage.getItem(k) ?? d;
 
 // ---- Einstellungen ----
 let addr = ls("led-addr", "ws://10.42.0.1:42069");
+let chain = +ls("led-chain", 4);
 let fit = ls("led-fit", "contain");
 let pixel = ls("led-pixel", "0") === "1";
-$("#addr").value = addr; $("#fit").value = fit; $("#pixel").checked = pixel;
+let rev = ls("led-rev", "0") === "1";
+// Panels stehen untereinander: Vorschau ist 64 breit und 32 × Anzahl hoch
+let W = PANEL_W, H = PANEL_H * chain;
+$("#addr").value = addr; $("#chain").value = chain; $("#fit").value = fit; $("#pixel").checked = pixel; $("#rev").checked = rev;
 
-const screens = SCREENS.map(d => ({
-  ...d, w: PANEL_W, h: PANEL_H * d.panels,
-  selId: ls("led-sel-" + d.id, d.id === "wand" ? ls("led-sel", "") : ""), // "led-sel" = alte Einzelauswahl
-  cur: null, start: 0, token: 0,
-}));
-let active = screens.find(s => s.id === ls("led-active", "wand")) || screens[0];
-
-// Kettenplätze (0-basiert) eines Screens, von oben nach unten
-function slotsOf(s) {
-  const L = layout[s.id], out = [];
-  for (let i = 0; i < s.panels; i++) out.push(L.start - 1 + (L.rev ? s.panels - 1 - i : i));
-  return out;
+const canvas = $("#c");
+const ctx = canvas.getContext("2d");
+// Sendepuffer: die Panels hängen elektrisch in einer Kette, der Server erwartet also 64·n × 32
+const outCanvas = document.createElement("canvas");
+const outCtx = outCanvas.getContext("2d", { willReadFrequently: true });
+function sizeCanvas() {
+  W = PANEL_W; H = PANEL_H * chain;
+  canvas.width = W; canvas.height = H;
+  outCanvas.width = PANEL_W * chain; outCanvas.height = PANEL_H;
+  const st = $("#screen").style;
+  st.setProperty("--cols", W); st.setProperty("--rows", H);
+  st.setProperty("--panels", chain); st.setProperty("--ratio", W / H);
+  ctx.imageSmoothingQuality = "high";
 }
-const chainLen = () => Math.max(...screens.flatMap(slotsOf)) + 1;
-
-// ---- Screens aufbauen ----
-for (const s of screens) {
-  const b = document.createElement("button");
-  b.className = "screen" + (s.panels > 1 ? " stack" : "");
-  b.style.setProperty("--cols", s.w); b.style.setProperty("--rows", s.h); b.style.setProperty("--panels", s.panels);
-  const c = document.createElement("canvas"); c.width = s.w; c.height = s.h;
-  const lbl = document.createElement("span"); lbl.className = "lbl"; lbl.textContent = s.name;
-  b.append(c, lbl);
-  b.onclick = () => setActive(s);
-  // Medium aus der Liste auf den Screen ziehen
-  b.addEventListener("dragover", e => { if (e.dataTransfer.types.includes("text/x-led-item")) { e.preventDefault(); b.classList.add("over"); } });
-  b.addEventListener("dragleave", () => b.classList.remove("over"));
-  b.addEventListener("drop", e => {
-    const id = e.dataTransfer.getData("text/x-led-item");
-    b.classList.remove("over");
-    if (!id) return;
-    e.preventDefault(); e.stopPropagation();
-    setActive(s); assign(s, id);
-  });
-  (s.panels > 1 ? $("#colBig") : $("#colSmall")).append(b);
-  s.el = b; s.canvas = c; s.ctx = c.getContext("2d");
-  s.ctx.imageSmoothingQuality = "high";
-}
-function setActive(s) {
-  active = s; save("led-active", s.id);
-  for (const x of screens) x.el.classList.toggle("active", x === s);
-  drawList();
-}
+sizeCanvas();
 
 // ---- Dateityp erkennen: "image" (GIF, PNG, JPG, WebP) oder "video" ----
 function kindOf(type, name) {
@@ -218,9 +156,9 @@ async function store(mode, fn) {
   });
 }
 
-// ---- Bild auf Screengrösse bringen ----
+// ---- Bild auf Wandgrösse bringen ----
 const cache = new Map();
-function place(c, img, sw, sh, W, H) {
+function place(c, img, sw, sh) {
   let dw = W, dh = H;
   if (fit !== "stretch") {
     const s = fit === "cover" ? Math.max(W / sw, H / sh) : Math.min(W / sw, H / sh);
@@ -231,43 +169,43 @@ function place(c, img, sw, sh, W, H) {
   c.drawImage(img, pixel ? Math.round(x) : x, pixel ? Math.round(y) : y, dw, dh);
 }
 
-// ---- Bilder (GIF, PNG …) vorab in Einzelbilder zerlegen, je Screengrösse ----
-async function decode(item, W, H) {
+// ---- Bilder (GIF, PNG …) vorab in Einzelbilder zerlegen ----
+async function decode(item) {
   const key = [item.id, W, H, fit, pixel].join();
   if (cache.has(key)) return cache.get(key);
-  const p = (async () => {
-    const type = item.blob.type || (/\.gif$/i.test(item.name) ? "image/gif" : "image/png");
-    const oc = new OffscreenCanvas(W, H), o = oc.getContext("2d");
-    o.imageSmoothingEnabled = !pixel; o.imageSmoothingQuality = "high";
-    const frames = []; let total = 0;
-    const canAnimate = "ImageDecoder" in window && await ImageDecoder.isTypeSupported(type);
-    if (canAnimate) {
-      const dec = new ImageDecoder({ data: await item.blob.arrayBuffer(), type });
-      await dec.tracks.ready;
-      const n = dec.tracks.selectedTrack.frameCount;
-      for (let i = 0; i < n; i++) {
-        const { image } = await dec.decode({ frameIndex: i });
-        total += Math.max(20, (image.duration || 100000) / 1000);
-        o.fillStyle = "#000"; o.fillRect(0, 0, W, H);
-        place(o, image, image.displayWidth, image.displayHeight, W, H);
-        frames.push({ bmp: await createImageBitmap(oc), end: total });
-        image.close();
-      }
-      dec.close();
-    } else {
-      if (type === "image/gif") throw new Error("Dieser Browser kann keine GIFs dekodieren. Bitte Chrome oder Edge verwenden.");
-      const bmp = await createImageBitmap(item.blob);
+  const type = item.blob.type || (/\.gif$/i.test(item.name) ? "image/gif" : "image/png");
+  const oc = new OffscreenCanvas(W, H), o = oc.getContext("2d");
+  o.imageSmoothingEnabled = !pixel; o.imageSmoothingQuality = "high";
+  const frames = []; let total = 0;
+  const canAnimate = "ImageDecoder" in window && await ImageDecoder.isTypeSupported(type);
+
+  if (canAnimate) {
+    // Animiert (GIF, APNG, WebP) oder Einzelbild: alle Frames mit ihrer Dauer
+    const dec = new ImageDecoder({ data: await item.blob.arrayBuffer(), type });
+    await dec.tracks.ready;
+    const n = dec.tracks.selectedTrack.frameCount;
+    for (let i = 0; i < n; i++) {
+      const { image } = await dec.decode({ frameIndex: i });
+      total += Math.max(20, (image.duration || 100000) / 1000);
       o.fillStyle = "#000"; o.fillRect(0, 0, W, H);
-      place(o, bmp, bmp.width, bmp.height, W, H);
-      bmp.close();
-      total = 1000;
+      place(o, image, image.displayWidth, image.displayHeight);
       frames.push({ bmp: await createImageBitmap(oc), end: total });
+      image.close();
     }
-    return { frames, total };
-  })();
-  cache.set(key, p);
-  p.catch(() => cache.delete(key));
-  return p;
+    dec.close();
+  } else {
+    if (type === "image/gif") throw new Error("Dieser Browser kann keine GIFs dekodieren. Bitte Chrome oder Edge verwenden.");
+    // Fallback für Standbilder ohne ImageDecoder (z. B. Safari)
+    const bmp = await createImageBitmap(item.blob);
+    o.fillStyle = "#000"; o.fillRect(0, 0, W, H);
+    place(o, bmp, bmp.width, bmp.height);
+    bmp.close();
+    total = 1000;
+    frames.push({ bmp: await createImageBitmap(oc), end: total });
+  }
+  const out = { frames, total };
+  cache.set(key, out);
+  return out;
 }
 
 // ---- Videos werden live abgespielt und jedes Bild neu skaliert ----
@@ -288,46 +226,41 @@ function stopVideo(v) {
 }
 
 // ---- Anzeige ----
-function setCur(s, next) {
-  if (s.cur && s.cur.video && s.cur !== next) stopVideo(s.cur.video);
-  s.cur = next; s.start = performance.now();
+let cur = null, start = 0, selId = ls("led-sel", ""), token = 0;
+function setCur(next) {
+  if (cur && cur.video && cur !== next) stopVideo(cur.video);
+  cur = next; start = performance.now();
 }
-function renderScreen(s, t) {
-  const ctx = s.ctx;
-  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, s.w, s.h);
-  const cur = s.cur;
+function render(t) {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
   if (cur && cur.video) {
     const v = cur.video;
     if (v.readyState >= 2 && v.videoWidth) {
       ctx.imageSmoothingEnabled = !pixel;
-      place(ctx, v, v.videoWidth, v.videoHeight, s.w, s.h);
+      place(ctx, v, v.videoWidth, v.videoHeight);
     }
   } else if (cur) {
-    const tt = (t - s.start) % cur.total;
+    const tt = (t - start) % cur.total;
     const f = cur.frames.find(f => tt < f.end) || cur.frames[0];
     ctx.drawImage(f.bmp, 0, 0);
   }
-}
-function render(t) {
-  for (const s of screens) renderScreen(s, t);
   requestAnimationFrame(render);
 }
 requestAnimationFrame(render);
 
 let items = [];
-async function assign(s, id) {
-  const my = ++s.token;
-  s.selId = id || ""; save("led-sel-" + s.id, id || null);
-  drawList();
+async function select(id) {
+  const my = ++token;
+  selId = id; localStorage.setItem("led-sel", id);
   const item = items.find(i => i.id === id);
-  if (!item) { setCur(s, null); return; }
+  if (!item) { setCur(null); drawList(); return; }
+  drawList();
   try {
-    const next = item.kind === "video" ? { video: await startVideo(item) } : await decode(item, s.w, s.h);
-    if (my !== s.token) { if (next.video) stopVideo(next.video); return; } // inzwischen anderes gewählt
-    setCur(s, next);
-  } catch (e) { if (my === s.token) alert(e.message); }
+    const next = item.kind === "video" ? { video: await startVideo(item) } : await decode(item);
+    if (my !== token) { if (next.video) stopVideo(next.video); return; } // inzwischen anderes gewählt
+    setCur(next);
+  } catch (e) { if (my === token) alert(e.message); }
 }
-const reloadAll = () => { cache.clear(); for (const s of screens) assign(s, s.selId); };
 
 // ---- Liste ----
 function drawList() {
@@ -339,39 +272,34 @@ function drawList() {
   grid.append(add);
   for (const it of items) {
     const b = document.createElement("div");
-    b.className = "tile" + (it.id === active.selId ? " sel" : "");
-    b.draggable = true;
-    b.addEventListener("dragstart", e => { e.dataTransfer.setData("text/x-led-item", it.id); e.dataTransfer.effectAllowed = "copy"; });
+    b.className = "tile" + (it.id === selId ? " sel" : "");
     const pick = document.createElement("button");
     pick.className = "pick";
-    pick.setAttribute("aria-pressed", it.id === active.selId);
-    pick.title = "Auf " + active.name + " zeigen";
+    pick.setAttribute("aria-pressed", it.id === selId);
     let thumb;
     if (it.kind === "video") {
       thumb = document.createElement("video");
       thumb.src = it.url; thumb.muted = true; thumb.loop = true; thumb.autoplay = true; thumb.playsInline = true;
     } else {
-      thumb = document.createElement("img"); thumb.src = it.url; thumb.alt = ""; thumb.draggable = false;
+      thumb = document.createElement("img"); thumb.src = it.url; thumb.alt = "";
     }
-    const name = document.createElement("span"); name.className = "name"; name.textContent = it.name;
+    const name = document.createElement("span"); name.textContent = it.name;
     pick.append(thumb, name);
-    pick.onclick = () => assign(active, it.id);
-    // Markierungen: Video + auf welchen Screens das Medium läuft
-    const tags = document.createElement("div"); tags.className = "tags";
-    if (it.kind === "video") { const k = document.createElement("span"); k.textContent = "VIDEO"; tags.append(k); }
-    for (const s of screens) if (s.selId === it.id) {
-      const k = document.createElement("span"); k.className = "on"; k.textContent = s.short; tags.append(k);
+    pick.onclick = () => select(it.id);
+    if (it.kind === "video") {
+      const k = document.createElement("span"); k.className = "kind"; k.textContent = "VIDEO";
+      b.append(k);
     }
     const del = document.createElement("button");
     del.className = "del"; del.textContent = "×"; del.title = "Löschen"; del.setAttribute("aria-label", it.name + " löschen");
     del.onclick = async () => {
-      await store("readwrite", st => st.delete(it.id));
+      await store("readwrite", s => s.delete(it.id));
       URL.revokeObjectURL(it.url);
       items = items.filter(x => x.id !== it.id);
-      for (const s of screens) if (s.selId === it.id) assign(s, "");
+      if (selId === it.id) { token++; setCur(null); selId = ""; localStorage.removeItem("led-sel"); }
       drawList();
     };
-    b.append(pick, tags, del);
+    b.prepend(pick); b.append(del);
     grid.append(b);
   }
   $("#empty").hidden = items.length > 0;
@@ -390,67 +318,21 @@ async function addFiles(files) {
   drawList();
   if (skipped.length) alert("Nicht unterstützt: " + skipped.join(", "));
 }
-$("#file").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; }; // Kopie, sonst leert value="" die Liste
-const hasFiles = e => e.dataTransfer && e.dataTransfer.types.includes("Files");
-addEventListener("dragover", e => { if (hasFiles(e)) { e.preventDefault(); document.body.classList.add("drag"); } });
+$("#file").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("drag"); });
 addEventListener("dragleave", e => { if (!e.relatedTarget) document.body.classList.remove("drag"); });
-addEventListener("drop", e => { if (!hasFiles(e)) return; e.preventDefault(); document.body.classList.remove("drag"); addFiles(e.dataTransfer.files); });
-
-// ---- Kettenpositionen ----
-function drawLayout() {
-  const row = $("#layout"); row.replaceChildren();
-  let revBox = null;
-  for (const s of screens) {
-    const L = layout[s.id];
-    const lab = document.createElement("label");
-    lab.textContent = s.panels > 1 ? s.name + " (oberstes Panel)" : s.name;
-    const inp = document.createElement("input");
-    inp.type = "number"; inp.min = 1; inp.max = 16; inp.value = L.start;
-    inp.onchange = () => { L.start = Math.max(1, Math.min(16, Math.round(+inp.value) || 1)); inp.value = L.start; layoutChanged(); };
-    lab.append(inp); row.append(lab);
-    if (s.panels > 1) {
-      const c = document.createElement("label"); c.className = "check";
-      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!L.rev;
-      cb.onchange = () => { L.rev = cb.checked; layoutChanged(); };
-      c.append(cb, " 4er-Wand: unterstes Panel zuerst in der Kette");
-      revBox = c;
-    }
-  }
-  if (revBox) row.append(revBox);
-  checkLayout();
-}
-function checkLayout() {
-  const n = chainLen();
-  $("#chainInfo").textContent = `Kette: ${n} Panels → es werden ${n * PANEL_W} × ${PANEL_H} Pixel gesendet. Der LED-Server muss auf ${n} Panels eingestellt sein.`;
-  // Doppelt belegte Plätze und Lücken melden
-  const owner = {}, clash = [];
-  for (const s of screens) for (const p of slotsOf(s)) {
-    if (owner[p]) clash.push(`Platz ${p + 1}: ${owner[p]} und ${s.name}`); else owner[p] = s.name;
-  }
-  const gaps = [];
-  for (let p = 0; p < n; p++) if (!owner[p]) gaps.push(p + 1);
-  const msg = [];
-  if (clash.length) msg.push("Doppelt belegt – " + clash.join(", ") + ".");
-  if (gaps.length) msg.push("Nicht belegt (bleibt schwarz): Platz " + gaps.join(", ") + ".");
-  $("#layoutWarn").textContent = msg.join(" ");
-  $("#layoutWarn").classList.toggle("show", msg.length > 0);
-}
-function layoutChanged() { save("led-layout", JSON.stringify(layout)); checkLayout(); }
+addEventListener("drop", e => { e.preventDefault(); document.body.classList.remove("drag"); addFiles(e.dataTransfer.files); });
 
 // ---- Verbindung zum LED-Server ----
-// Die Panels hängen in einer Kette: alles wird in ein langes Bild (64·n × 32) kopiert
-const outCanvas = document.createElement("canvas");
-const outCtx = outCanvas.getContext("2d", { willReadFrequently: true });
 let sock = null, watchdog = 0;
 function status(text, cls = "") { const s = $("#status"); s.textContent = text; s.className = cls; }
 function sendFrame() {
   if (!sock) return;
-  const n = chainLen();
-  if (outCanvas.width !== n * PANEL_W) { outCanvas.width = n * PANEL_W; outCanvas.height = PANEL_H; }
-  outCtx.fillStyle = "#000"; outCtx.fillRect(0, 0, outCanvas.width, PANEL_H);
-  for (const s of screens) slotsOf(s).forEach((slot, i) => {
-    outCtx.drawImage(s.canvas, 0, i * PANEL_H, PANEL_W, PANEL_H, slot * PANEL_W, 0, PANEL_W, PANEL_H);
-  });
+  // Jedes Panel aus der senkrechten Vorschau an seine Stelle in der Kette kopieren
+  for (let i = 0; i < chain; i++) {
+    const slot = rev ? chain - 1 - i : i;
+    outCtx.drawImage(canvas, 0, i * PANEL_H, PANEL_W, PANEL_H, slot * PANEL_W, 0, PANEL_W, PANEL_H);
+  }
   try { sock.send(outCtx.getImageData(0, 0, outCanvas.width, PANEL_H).data.buffer); } catch (e) { status("Sendefehler", "warn"); }
 }
 async function connect() {
@@ -466,15 +348,18 @@ async function connect() {
     watchdog = setTimeout(() => status("keine Antwort vom Server", "warn"), 4000);
   } catch (e) { status("Verbindung fehlgeschlagen", "warn"); }
 }
-$("#connect").onclick = () => { addr = $("#addr").value.trim(); save("led-addr", addr); connect(); };
-$("#fit").onchange = e => { fit = e.target.value; save("led-fit", fit); reloadAll(); };
-$("#pixel").onchange = e => { pixel = e.target.checked; save("led-pixel", pixel ? "1" : "0"); reloadAll(); };
-$("#black").onclick = () => assign(active, "");
-$("#blackAll").onclick = () => { for (const s of screens) assign(s, ""); };
+$("#connect").onclick = () => {
+  addr = $("#addr").value.trim(); localStorage.setItem("led-addr", addr);
+  const c = Math.max(1, Math.min(16, +$("#chain").value || 4));
+  if (c !== chain) { chain = c; localStorage.setItem("led-chain", c); cache.clear(); sizeCanvas(); select(selId); }
+  connect();
+};
+$("#fit").onchange = e => { fit = e.target.value; localStorage.setItem("led-fit", fit); cache.clear(); select(selId); };
+$("#pixel").onchange = e => { pixel = e.target.checked; localStorage.setItem("led-pixel", pixel ? "1" : "0"); cache.clear(); select(selId); };
+$("#rev").onchange = e => { rev = e.target.checked; localStorage.setItem("led-rev", rev ? "1" : "0"); };
+$("#black").onclick = () => { token++; setCur(null); selId = ""; localStorage.removeItem("led-sel"); drawList(); };
 
 // ---- Start ----
-drawLayout();
-setActive(active);
 const saved = await store("readonly", s => s.getAll());
 items = (saved || []).sort((a, b) => a.added - b.added).map(r => ({
   ...r,
@@ -482,7 +367,7 @@ items = (saved || []).sort((a, b) => a.added - b.added).map(r => ({
   url: URL.createObjectURL(r.blob)
 }));
 drawList();
-for (const s of screens) if (s.selId) assign(s, s.selId);
+if (selId) select(selId);
 connect();
 </script>
 </body>
