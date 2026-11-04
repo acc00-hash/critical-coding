@@ -23,11 +23,17 @@ h2 { font-size: 18px; margin: 32px 0 12px; }
 #status.ok::before { background: var(--ok); }
 #status.warn::before { background: var(--warn); }
 
-.screen { position: relative; background: #000; border: 1px solid var(--line); }
+.screen { position: relative; background: #000; border: 1px solid var(--line);
+  width: min(100%, calc(70vh * var(--ratio, .5))); margin: 0 auto; }
 .screen canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+/* LED-Raster */
 .screen::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(circle at center, transparent 38%, rgba(0,0,0,.85) 66%);
-  background-size: calc(100% / var(--cols)) calc(100% / 32); }
+  background-size: calc(100% / var(--cols)) calc(100% / var(--rows)); }
+/* Trennlinien zwischen den Panels */
+.screen::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to bottom, transparent calc(100% - 3px), var(--bg) calc(100% - 3px));
+  background-size: 100% calc(100% / var(--panels)); }
 
 .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-top: 14px; }
 label { display: grid; gap: 4px; color: var(--mute); font-size: 13px; }
@@ -84,6 +90,7 @@ body.drag .add { border-color: var(--accent); color: var(--text); }
   <div class="row" style="margin-top:0">
     <label>Adresse des LED-Servers <input type="text" id="addr" spellcheck="false"></label>
     <label>Anzahl Panels (je 64 × 32) <input type="number" id="chain" min="1" max="16"></label>
+    <label style="grid-auto-flow:column;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="rev"> Unterstes Panel ist das erste in der Kette</label>
     <button id="connect">Neu verbinden</button>
   </div>
   <div id="hint">
@@ -96,7 +103,7 @@ body.drag .add { border-color: var(--accent); color: var(--text); }
 <script type="module" src="libraries/zeromq.bundle.js"></script>
 <script type="module">
 const $ = s => document.querySelector(s);
-const PANEL_W = 64, H = 32;
+const PANEL_W = 64, PANEL_H = 32;
 const ls = (k, d) => localStorage.getItem(k) ?? d;
 
 // ---- Einstellungen ----
@@ -104,14 +111,23 @@ let addr = ls("led-addr", "ws://10.42.0.1:42069");
 let chain = +ls("led-chain", 4);
 let fit = ls("led-fit", "contain");
 let pixel = ls("led-pixel", "0") === "1";
-let W = PANEL_W * chain;
-$("#addr").value = addr; $("#chain").value = chain; $("#fit").value = fit; $("#pixel").checked = pixel;
+let rev = ls("led-rev", "0") === "1";
+// Panels stehen untereinander: Vorschau ist 64 breit und 32 × Anzahl hoch
+let W = PANEL_W, H = PANEL_H * chain;
+$("#addr").value = addr; $("#chain").value = chain; $("#fit").value = fit; $("#pixel").checked = pixel; $("#rev").checked = rev;
 
 const canvas = $("#c");
-const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const ctx = canvas.getContext("2d");
+// Sendepuffer: die Panels hängen elektrisch in einer Kette, der Server erwartet also 64·n × 32
+const outCanvas = document.createElement("canvas");
+const outCtx = outCanvas.getContext("2d", { willReadFrequently: true });
 function sizeCanvas() {
-  W = PANEL_W * chain; canvas.width = W; canvas.height = H;
-  $("#screen").style.setProperty("--cols", W);
+  W = PANEL_W; H = PANEL_H * chain;
+  canvas.width = W; canvas.height = H;
+  outCanvas.width = PANEL_W * chain; outCanvas.height = PANEL_H;
+  const st = $("#screen").style;
+  st.setProperty("--cols", W); st.setProperty("--rows", H);
+  st.setProperty("--panels", chain); st.setProperty("--ratio", W / H);
   ctx.imageSmoothingQuality = "high";
 }
 sizeCanvas();
@@ -155,7 +171,7 @@ function place(c, img, sw, sh) {
 
 // ---- Bilder (GIF, PNG …) vorab in Einzelbilder zerlegen ----
 async function decode(item) {
-  const key = [item.id, W, fit, pixel].join();
+  const key = [item.id, W, H, fit, pixel].join();
   if (cache.has(key)) return cache.get(key);
   const type = item.blob.type || (/\.gif$/i.test(item.name) ? "image/gif" : "image/png");
   const oc = new OffscreenCanvas(W, H), o = oc.getContext("2d");
@@ -312,7 +328,12 @@ let sock = null, watchdog = 0;
 function status(text, cls = "") { const s = $("#status"); s.textContent = text; s.className = cls; }
 function sendFrame() {
   if (!sock) return;
-  try { sock.send(ctx.getImageData(0, 0, W, H).data.buffer); } catch (e) { status("Sendefehler", "warn"); }
+  // Jedes Panel aus der senkrechten Vorschau an seine Stelle in der Kette kopieren
+  for (let i = 0; i < chain; i++) {
+    const slot = rev ? chain - 1 - i : i;
+    outCtx.drawImage(canvas, 0, i * PANEL_H, PANEL_W, PANEL_H, slot * PANEL_W, 0, PANEL_W, PANEL_H);
+  }
+  try { sock.send(outCtx.getImageData(0, 0, outCanvas.width, PANEL_H).data.buffer); } catch (e) { status("Sendefehler", "warn"); }
 }
 async function connect() {
   clearTimeout(watchdog);
@@ -335,6 +356,7 @@ $("#connect").onclick = () => {
 };
 $("#fit").onchange = e => { fit = e.target.value; localStorage.setItem("led-fit", fit); cache.clear(); select(selId); };
 $("#pixel").onchange = e => { pixel = e.target.checked; localStorage.setItem("led-pixel", pixel ? "1" : "0"); cache.clear(); select(selId); };
+$("#rev").onchange = e => { rev = e.target.checked; localStorage.setItem("led-rev", rev ? "1" : "0"); };
 $("#black").onclick = () => { token++; setCur(null); selId = ""; localStorage.removeItem("led-sel"); drawList(); };
 
 // ---- Start ----
