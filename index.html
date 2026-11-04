@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LED-Wand</title>
+<style>
+@font-face { font-family: "Pixelmix"; src: url("font/pixelmix.ttf"); }
+:root {
+  --bg: #121316; --surface: #1b1d22; --line: #2c2f36;
+  --text: #e9e7e2; --mute: #8d9099; --accent: #5b8cff; --ok: #4fd18b; --warn: #ffb454;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; }
+h1, h2, .px { font-family: "Pixelmix", monospace; font-weight: normal; }
+h1 { font-size: 28px; margin: 0; }
+h2 { font-size: 18px; margin: 32px 0 12px; }
+#status { font-family: "Pixelmix", monospace; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+#status::before { content: ""; width: 10px; height: 10px; background: var(--mute); }
+#status.ok::before { background: var(--ok); }
+#status.warn::before { background: var(--warn); }
+
+.screen { position: relative; background: #000; border: 1px solid var(--line); }
+.screen canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.screen::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at center, transparent 38%, rgba(0,0,0,.85) 66%);
+  background-size: calc(100% / var(--cols)) calc(100% / 32); }
+
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-top: 14px; }
+label { display: grid; gap: 4px; color: var(--mute); font-size: 13px; }
+input, select, button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); padding: 8px 10px; border-radius: 4px; }
+input[type=text] { width: 17em; }
+input[type=number] { width: 5em; }
+button { cursor: pointer; }
+button:hover { border-color: var(--mute); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#hint { display: none; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--warn); font-size: 13px; }
+#hint.show { display: block; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.tile { position: relative; padding: 0; background: var(--surface); border: 1px solid var(--line); text-align: left; overflow: hidden; }
+.pick { display: block; width: 100%; padding: 0; border: 0; border-radius: 0; background: none; text-align: left; }
+.tile img, .tile video { display: block; width: 100%; height: 100px; object-fit: cover; background: #000; }
+.tile span { display: block; padding: 6px 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.tile .del { position: absolute; top: 4px; right: 4px; padding: 0 7px; background: rgba(0,0,0,.7); line-height: 1.5; }
+.tile .kind { position: absolute; top: 4px; left: 4px; padding: 0 6px; font: 10px/1.6 "Pixelmix", monospace; background: rgba(0,0,0,.7); border-radius: 3px; }
+.add { display: grid; place-items: center; min-height: 130px; border: 1px dashed var(--mute); color: var(--mute); background: none; text-align: center; padding: 12px; }
+body.drag .add { border-color: var(--accent); color: var(--text); }
+#empty { color: var(--mute); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>LED-Wand</h1>
+    <div id="status" role="status">nicht verbunden</div>
+  </header>
+
+  <div class="screen" id="screen"><canvas id="c"></canvas></div>
+
+  <div class="row">
+    <label>Anpassung
+      <select id="fit">
+        <option value="contain">Einpassen (ganzes Bild)</option>
+        <option value="cover">Füllen (Ränder abschneiden)</option>
+        <option value="stretch">Strecken</option>
+      </select>
+    </label>
+    <label style="grid-auto-flow:column;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="pixel"> Pixelig (ohne Glättung)</label>
+    <button id="black">Wand schwarz schalten</button>
+  </div>
+
+  <h2>Medien</h2>
+  <div class="grid" id="grid"></div>
+  <p id="empty">Noch keine Dateien. Ziehe GIFs, PNGs oder Videos auf diese Seite oder wähle sie aus.</p>
+  <input type="file" id="file" accept="image/gif,image/png,image/apng,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime,.mp4,.m4v,.webm,.mov" multiple hidden>
+
+  <h2>Verbindung</h2>
+  <div class="row" style="margin-top:0">
+    <label>Adresse des LED-Servers <input type="text" id="addr" spellcheck="false"></label>
+    <label>Anzahl Panels (je 64 × 32) <input type="number" id="chain" min="1" max="16"></label>
+    <button id="connect">Neu verbinden</button>
+  </div>
+  <div id="hint">
+    Diese Seite läuft über https, der Server nur über ws://. Chrome blockiert das standardmässig:
+    Schloss-Symbol in der Adressleiste → Website-Einstellungen → «Unsichere Inhalte» auf «Zulassen» stellen,
+    Seite neu laden. Fragt Chrome nach Zugriff auf das lokale Netzwerk, erlaube ihn.
+  </div>
+</main>
+
+<script type="module" src="libraries/zeromq.bundle.js"></script>
+<script type="module">
+const $ = s => document.querySelector(s);
+const PANEL_W = 64, H = 32;
+const ls = (k, d) => localStorage.getItem(k) ?? d;
+
+// ---- Einstellungen ----
+let addr = ls("led-addr", "ws://10.42.0.1:42069");
+let chain = +ls("led-chain", 4);
+let fit = ls("led-fit", "contain");
+let pixel = ls("led-pixel", "0") === "1";
+let W = PANEL_W * chain;
+$("#addr").value = addr; $("#chain").value = chain; $("#fit").value = fit; $("#pixel").checked = pixel;
+
+const canvas = $("#c");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+function sizeCanvas() {
+  W = PANEL_W * chain; canvas.width = W; canvas.height = H;
+  $("#screen").style.setProperty("--cols", W);
+  ctx.imageSmoothingQuality = "high";
+}
+sizeCanvas();
+
+// ---- Dateityp erkennen: "image" (GIF, PNG, JPG, WebP) oder "video" ----
+function kindOf(type, name) {
+  type = type || "";
+  if (type.startsWith("video/")) return "video";
+  if (type.startsWith("image/")) return "image";
+  if (/\.(mp4|m4v|webm|mov)$/i.test(name)) return "video";
+  if (/\.(gif|png|apng|jpe?g|webp)$/i.test(name)) return "image";
+  return null;
+}
+
+// ---- Speicher im Browser (IndexedDB) ----
+const dbp = new Promise((res, rej) => {
+  const r = indexedDB.open("led-gifs", 1);
+  r.onupgradeneeded = () => r.result.createObjectStore("gifs", { keyPath: "id" });
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+});
+async function store(mode, fn) {
+  const db = await dbp;
+  return new Promise((res, rej) => {
+    const t = db.transaction("gifs", mode), req = fn(t.objectStore("gifs"));
+    t.oncomplete = () => res(req && req.result); t.onerror = () => rej(t.error);
+  });
+}
+
+// ---- Bild auf Wandgrösse bringen ----
+const cache = new Map();
+function place(c, img, sw, sh) {
+  let dw = W, dh = H;
+  if (fit !== "stretch") {
+    const s = fit === "cover" ? Math.max(W / sw, H / sh) : Math.min(W / sw, H / sh);
+    dw = sw * s; dh = sh * s;
+  }
+  if (pixel) { dw = Math.round(dw); dh = Math.round(dh); }
+  const x = (W - dw) / 2, y = (H - dh) / 2;
+  c.drawImage(img, pixel ? Math.round(x) : x, pixel ? Math.round(y) : y, dw, dh);
+}
+
+// ---- Bilder (GIF, PNG …) vorab in Einzelbilder zerlegen ----
+async function decode(item) {
+  const key = [item.id, W, fit, pixel].join();
+  if (cache.has(key)) return cache.get(key);
+  const type = item.blob.type || (/\.gif$/i.test(item.name) ? "image/gif" : "image/png");
+  const oc = new OffscreenCanvas(W, H), o = oc.getContext("2d");
+  o.imageSmoothingEnabled = !pixel; o.imageSmoothingQuality = "high";
+  const frames = []; let total = 0;
+  const canAnimate = "ImageDecoder" in window && await ImageDecoder.isTypeSupported(type);
+
+  if (canAnimate) {
+    // Animiert (GIF, APNG, WebP) oder Einzelbild: alle Frames mit ihrer Dauer
+    const dec = new ImageDecoder({ data: await item.blob.arrayBuffer(), type });
+    await dec.tracks.ready;
+    const n = dec.tracks.selectedTrack.frameCount;
+    for (let i = 0; i < n; i++) {
+      const { image } = await dec.decode({ frameIndex: i });
+      total += Math.max(20, (image.duration || 100000) / 1000);
+      o.fillStyle = "#000"; o.fillRect(0, 0, W, H);
+      place(o, image, image.displayWidth, image.displayHeight);
+      frames.push({ bmp: await createImageBitmap(oc), end: total });
+      image.close();
+    }
+    dec.close();
+  } else {
+    if (type === "image/gif") throw new Error("Dieser Browser kann keine GIFs dekodieren. Bitte Chrome oder Edge verwenden.");
+    // Fallback für Standbilder ohne ImageDecoder (z. B. Safari)
+    const bmp = await createImageBitmap(item.blob);
+    o.fillStyle = "#000"; o.fillRect(0, 0, W, H);
+    place(o, bmp, bmp.width, bmp.height);
+    bmp.close();
+    total = 1000;
+    frames.push({ bmp: await createImageBitmap(oc), end: total });
+  }
+  const out = { frames, total };
+  cache.set(key, out);
+  return out;
+}
+
+// ---- Videos werden live abgespielt und jedes Bild neu skaliert ----
+async function startVideo(item) {
+  const v = document.createElement("video");
+  v.muted = true; v.loop = true; v.playsInline = true;
+  v.src = item.url;
+  try { await v.play(); }
+  catch (e) {
+    stopVideo(v);
+    throw new Error("Dieses Video kann der Browser nicht abspielen. Am sichersten sind MP4 (H.264) oder WebM.");
+  }
+  return v;
+}
+function stopVideo(v) {
+  if (!v) return;
+  v.pause(); v.removeAttribute("src"); v.load();
+}
+
+// ---- Anzeige ----
+let cur = null, start = 0, selId = ls("led-sel", ""), token = 0;
+function setCur(next) {
+  if (cur && cur.video && cur !== next) stopVideo(cur.video);
+  cur = next; start = performance.now();
+}
+function render(t) {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  if (cur && cur.video) {
+    const v = cur.video;
+    if (v.readyState >= 2 && v.videoWidth) {
+      ctx.imageSmoothingEnabled = !pixel;
+      place(ctx, v, v.videoWidth, v.videoHeight);
+    }
+  } else if (cur) {
+    const tt = (t - start) % cur.total;
+    const f = cur.frames.find(f => tt < f.end) || cur.frames[0];
+    ctx.drawImage(f.bmp, 0, 0);
+  }
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+let items = [];
+async function select(id) {
+  const my = ++token;
+  selId = id; localStorage.setItem("led-sel", id);
+  const item = items.find(i => i.id === id);
+  if (!item) { setCur(null); drawList(); return; }
+  drawList();
+  try {
+    const next = item.kind === "video" ? { video: await startVideo(item) } : await decode(item);
+    if (my !== token) { if (next.video) stopVideo(next.video); return; } // inzwischen anderes gewählt
+    setCur(next);
+  } catch (e) { if (my === token) alert(e.message); }
+}
+
+// ---- Liste ----
+function drawList() {
+  const grid = $("#grid");
+  grid.replaceChildren();
+  const add = document.createElement("button");
+  add.className = "add"; add.textContent = "+ GIFs, PNGs oder Videos hinzufügen";
+  add.onclick = () => $("#file").click();
+  grid.append(add);
+  for (const it of items) {
+    const b = document.createElement("div");
+    b.className = "tile" + (it.id === selId ? " sel" : "");
+    const pick = document.createElement("button");
+    pick.className = "pick";
+    pick.setAttribute("aria-pressed", it.id === selId);
+    let thumb;
+    if (it.kind === "video") {
+      thumb = document.createElement("video");
+      thumb.src = it.url; thumb.muted = true; thumb.loop = true; thumb.autoplay = true; thumb.playsInline = true;
+    } else {
+      thumb = document.createElement("img"); thumb.src = it.url; thumb.alt = "";
+    }
+    const name = document.createElement("span"); name.textContent = it.name;
+    pick.append(thumb, name);
+    pick.onclick = () => select(it.id);
+    if (it.kind === "video") {
+      const k = document.createElement("span"); k.className = "kind"; k.textContent = "VIDEO";
+      b.append(k);
+    }
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "×"; del.title = "Löschen"; del.setAttribute("aria-label", it.name + " löschen");
+    del.onclick = async () => {
+      await store("readwrite", s => s.delete(it.id));
+      URL.revokeObjectURL(it.url);
+      items = items.filter(x => x.id !== it.id);
+      if (selId === it.id) { token++; setCur(null); selId = ""; localStorage.removeItem("led-sel"); }
+      drawList();
+    };
+    b.prepend(pick); b.append(del);
+    grid.append(b);
+  }
+  $("#empty").hidden = items.length > 0;
+}
+
+async function addFiles(files) {
+  const skipped = [];
+  for (const f of files) {
+    const kind = kindOf(f.type, f.name);
+    if (!kind) { skipped.push(f.name); continue; }
+    const rec = { id: crypto.randomUUID(), name: f.name, kind, blob: f, added: Date.now() };
+    try { await store("readwrite", s => s.put(rec)); }
+    catch (e) { alert(f.name + " konnte nicht gespeichert werden (zu gross für den Browser-Speicher?)."); continue; }
+    items.push({ ...rec, url: URL.createObjectURL(f) });
+  }
+  drawList();
+  if (skipped.length) alert("Nicht unterstützt: " + skipped.join(", "));
+}
+$("#file").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("drag"); });
+addEventListener("dragleave", e => { if (!e.relatedTarget) document.body.classList.remove("drag"); });
+addEventListener("drop", e => { e.preventDefault(); document.body.classList.remove("drag"); addFiles(e.dataTransfer.files); });
+
+// ---- Verbindung zum LED-Server ----
+let sock = null, watchdog = 0;
+function status(text, cls = "") { const s = $("#status"); s.textContent = text; s.className = cls; }
+function sendFrame() {
+  if (!sock) return;
+  try { sock.send(ctx.getImageData(0, 0, W, H).data.buffer); } catch (e) { status("Sendefehler", "warn"); }
+}
+async function connect() {
+  clearTimeout(watchdog);
+  if (sock) { try { sock.close(); } catch {} sock = null; }
+  $("#hint").classList.toggle("show", location.protocol === "https:" && addr.startsWith("ws://"));
+  status("verbinde …");
+  try {
+    sock = new window.zmq.Req();
+    sock.on("message", () => { clearTimeout(watchdog); status("sendet an die Wand", "ok"); requestAnimationFrame(sendFrame); });
+    await sock.connect(addr);
+    requestAnimationFrame(sendFrame);
+    watchdog = setTimeout(() => status("keine Antwort vom Server", "warn"), 4000);
+  } catch (e) { status("Verbindung fehlgeschlagen", "warn"); }
+}
+$("#connect").onclick = () => {
+  addr = $("#addr").value.trim(); localStorage.setItem("led-addr", addr);
+  const c = Math.max(1, Math.min(16, +$("#chain").value || 4));
+  if (c !== chain) { chain = c; localStorage.setItem("led-chain", c); cache.clear(); sizeCanvas(); select(selId); }
+  connect();
+};
+$("#fit").onchange = e => { fit = e.target.value; localStorage.setItem("led-fit", fit); cache.clear(); select(selId); };
+$("#pixel").onchange = e => { pixel = e.target.checked; localStorage.setItem("led-pixel", pixel ? "1" : "0"); cache.clear(); select(selId); };
+$("#black").onclick = () => { token++; setCur(null); selId = ""; localStorage.removeItem("led-sel"); drawList(); };
+
+// ---- Start ----
+const saved = await store("readonly", s => s.getAll());
+items = (saved || []).sort((a, b) => a.added - b.added).map(r => ({
+  ...r,
+  kind: r.kind || kindOf(r.blob.type, r.name) || "image", // ältere Einträge (nur GIFs) haben noch kein "kind"
+  url: URL.createObjectURL(r.blob)
+}));
+drawList();
+if (selId) select(selId);
+connect();
+</script>
+</body>
+</html>
