@@ -1,9 +1,9 @@
 ---
 nr: 2
-titel: Beispiel zwei
-autorin: Erika Musterfrau
-datum: 2023
-quelle: https://example.com
+titel: Sylt-Video
+autorin: Henrik Rampe
+datum: 2024
+quelle: https://www.zeit.de/digital/internet/2024-05/sylt-video-rassismus-aktivismus-internet-suche-beteiligte
 led:
   wand: turm.gif
   e1: klein.gif
@@ -12,8 +12,6 @@ led:
   e4: schwarz
 ---
 
-Platzhaltertext für das zweite Projekt. Hier sind die Dateien im Ordner led/ frei benannt und werden oben im Kopfteil unter «led:» den Screens zugeordnet.
+Wie Hobbyermittler die Protagonisten des Sylt-Videos suchen. Seit dem rassistischen Sylt-Video suchen Aktivisten im Netz nach den Beteiligten. Die Hobbyermittler liegen jedoch nicht immer richtig – und machen sich wohl strafbar.
 
-Dieselbe Datei darf auf mehreren Screens laufen (hier klein.gif auf Einzel 1 und Einzel 3). «schwarz» schaltet einen Screen bewusst ab.
-
-Ein weiterer Absatz, damit man das Scrollen gut ausprobieren kann. Sobald dieser Abschnitt über der Mitte des Bildschirms steht, wechseln die Panels zu den Animationen dieses Projekts.
+Eine junge Frau blickt ernst in die Kamera, ringt um Worte, sagt, dass sie nie gedacht hätte, zu einem Handyvideo von Sylt ein Statement abgeben zu müssen. Schließlich sei sie noch nie in Deutschland gewesen und spreche kein einziges Wort Deutsch. Aber jetzt, da sie unzählige Hassnachrichten erhalte, möchte sie eines klarstellen: "Die Frau in diesem Video. Das bin nicht ich."
