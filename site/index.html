@@ -4,6 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Doxxing</title>
+<script>
+  // Akzentfarbe wechselt bei jedem Neuladen: Blau → Orange → Grün → Blau …
+  (function () {
+    const ACCENTS = [null, "#F14905", "#00E035"]; // null = Blau aus dem CSS
+    let i = 0;
+    try {
+      const prev = localStorage.getItem("site-accent"); // erster Besuch: Blau
+      i = prev === null ? 0 : ((+prev || 0) + 1) % ACCENTS.length;
+      localStorage.setItem("site-accent", i);
+    } catch {}
+    if (ACCENTS[i]) document.documentElement.style.setProperty("--accent", ACCENTS[i]);
+  })();
+</script>
 <style>
 @font-face { font-family: "Pixelmix"; src: url("font/pixelmix.ttf"); }
 @font-face { font-family: "Antique Legacy"; src: url("font/AntiqueLegacy-Book.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
@@ -54,8 +67,9 @@ ul { list-style: none; margin: 0; padding: 0; }
 .accin p { margin: 0 0 var(--s16); }
 .accin p:last-child { margin-bottom: 0; }
 .accin a:not(.pdf) { color: var(--accent); }
-.pdf { display: block; width: 87px; margin: 0 auto; color: var(--text); transition: transform .8s cubic-bezier(0, .96, 0, 1); }
-.pdf:hover { color: var(--accent); transform: scale(.94); }
+.pdf { display: block; width: 87px; margin: 0 auto; --pdf-ink: var(--text); --pdf-paper: var(--bg); transition: transform .8s cubic-bezier(0, .96, 0, 1); }
+.pdf:hover { --pdf-ink: #fff; --pdf-paper: var(--accent); transform: scale(.94); }
+[data-theme="dark"] .pdf:hover { --pdf-ink: #E5E5E5; }
 .pdf svg { display: block; width: 100%; height: auto; }
 .pdf .pdf-dark, [data-theme="dark"] .pdf .pdf-light { display: none; }
 [data-theme="dark"] .pdf .pdf-dark { display: block; }
@@ -95,9 +109,10 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj .body h3 { font: inherit; font-weight: bold; }
 .proj.on .body a { color: var(--accent); }
 .proj .body a:hover { text-decoration: underline; }
+.proj .w { position: relative; }
 
 .switches { position: fixed; left: var(--s40); bottom: var(--s40); display: flex; gap: var(--s40); z-index: 5; }
-.sw { display: flex; gap: var(--s16); }
+.sw { display: flex; gap: var(--s8); }
 .sw button { color: var(--mute); }
 .sw button.on { color: var(--text); }
 .sw button:hover { color: var(--accent); }
@@ -382,16 +397,20 @@ const projects = DATA.projects || [], pages = DATA.pages || {};
    Texte-Ansicht
    ===================================================================== */
 // PDF-Kachel «Please share»: eigene SVGs für Light (img/pdf-button-light.svg) und Dark (img/pdf-button-dark.svg).
-// Die «Tinte» (Light: schwarz, Dark: weiss) wird zu currentColor, damit sie beim Hover blau werden kann.
-async function loadPdfSvg(file, ink) {
+// «Tinte» und «Papier» werden zu CSS-Variablen: normal Tinte = Textfarbe, Papier = Hintergrund;
+// beim Hover Papier = Akzentfarbe, Tinte = hell (siehe .pdf:hover im CSS)
+async function loadPdfSvg(file, ink, paper) {
   try {
-    const re = new RegExp(`(<(?:path|rect)\\b[^>]*?)(fill|stroke)="${ink}"`, "g");
-    let svg = (await (await fetch(file)).text()).replace(/<\?xml[^>]*>/, "");
-    while (re.test(svg)) svg = svg.replace(re, '$1$2="currentColor"'); // <mask fill="white"> bleibt unverändert
-    return svg.replace("<svg ", '<svg aria-hidden="true" ');
+    const svg = (await (await fetch(file)).text()).replace(/<\?xml[^>]*>/, "");
+    return svg.replace(/<(path|rect)\b[^>]*>/g, tag => tag.replace(/(fill|stroke)="([^"]+)"/g, (m, attr, val) =>
+      val === ink ? `${attr}="var(--pdf-ink)"` : val === paper ? `${attr}="var(--pdf-paper)"` : m)) // <mask> bleibt unverändert
+      .replace("<svg ", '<svg aria-hidden="true" ');
   } catch { return ""; }
 }
-const [pdfLight, pdfDark] = await Promise.all([loadPdfSvg("img/pdf-button-light.svg", "black"), loadPdfSvg("img/pdf-button-dark.svg", "white")]);
+const [pdfLight, pdfDark] = await Promise.all([
+  loadPdfSvg("img/pdf-button-light.svg", "black", "white"),
+  loadPdfSvg("img/pdf-button-dark.svg", "white", "black"),
+]);
 const pdfSvg = `<span class="pdf-light">${pdfLight}</span><span class="pdf-dark">${pdfDark}</span>`;
 
 // Auf- und Zuklappen mit Animation (.fold) und drehendem Pfeil
@@ -475,6 +494,47 @@ for (const key of ["definition", "praevention"]) {
 }
 $("#projToggle").onclick = () => foldToggle($("#projToggle"), $("#projFold"));
 
+// Lauftext: jedes Wort in ein <span class="w"> packen (Links und Silbentrennung bleiben erhalten)
+function wrapWords(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const n of nodes) {
+    const frag = document.createDocumentFragment();
+    for (const part of n.data.split(/(\s+)/)) {
+      if (!part) continue;
+      frag.append(/^\s+$/.test(part) ? part : el("span", { className: "w", textContent: part }));
+    }
+    n.replaceWith(frag);
+  }
+}
+// Wird ein Artikel aktiv, erscheinen seine Wörter nacheinander in der Akzentfarbe
+// und gehen danach langsam in die Textfarbe über. Nur was im Bild ist, wird animiert.
+const WORD = { step: 14, maxSpread: 2200, duration: 1600 };
+let wordTimer = 0, wordSection = null;
+function revealWords(sec) {
+  clearTimeout(wordTimer);
+  if (wordSection && wordSection !== sec) wordSection.querySelectorAll(".w").forEach(w => w.getAnimations().forEach(a => a.cancel()));
+  wordSection = sec;
+  if (reduceMotion || !sec) return;
+  // kurz warten, damit beim schnellen Scrollen nicht jeder Artikel kurz aufblitzt
+  wordTimer = setTimeout(() => {
+    if (!sec.classList.contains("on")) return;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    const words = [...sec.querySelectorAll(".body .w")].filter(w => { const r = w.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; });
+    const step = Math.min(WORD.step, WORD.maxSpread / Math.max(1, words.length));
+    const colorOf = new Map();
+    words.forEach((w, i) => {
+      const parent = w.parentElement;
+      if (!colorOf.has(parent)) colorOf.set(parent, getComputedStyle(parent).color);
+      w.animate([
+        { opacity: 0, top: ".4em", color: accent },
+        { opacity: 1, top: "0", color: accent, offset: .22 },
+        { opacity: 1, top: "0", color: colorOf.get(parent) },
+      ], { duration: WORD.duration, delay: i * step, easing: "cubic-bezier(.3, .7, .2, 1)", fill: "backwards" });
+    });
+  }, 120);
+}
+
 // Projektliste + Textabschnitte
 const sections = [];
 projects.forEach((p, i) => {
@@ -486,6 +546,7 @@ projects.forEach((p, i) => {
   const sec = el("section", { className: "proj", id: p.slug });
   const head = el("header", {}, el("span", { className: "nr", textContent: p.nr }), el("h2", { textContent: p.titel }), el("span", { className: "sp" }));
   const body = el("div", { className: "body", innerHTML: p.html });
+  wrapWords(body);
   sec.append(head, body);
   $("#text").append(sec);
   sections.push(sec);
@@ -577,6 +638,7 @@ function setActiveProject(i) {
   activeIdx = i;
   const p = projects[i];
   sections.forEach((s, j) => s.classList.toggle("on", j === i));
+  revealWords(sections[i]);
   projects.forEach((q, j) => q.navEl.classList.toggle("on", j === i));
   fillColumns(p);
   history.replaceState(null, "", location.pathname + location.search + "#" + p.slug);
