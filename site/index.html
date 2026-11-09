@@ -22,7 +22,7 @@
 </script>
 <style>
 @font-face { font-family: "Pixelmix"; src: url("font/pixelmix.ttf"); }
-@font-face { font-family: "Antique Legacy"; src: url("font/AntiqueLegacy-Book.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Antique Legacy"; src: url("font/AntiqueLegacy-Regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
 :root {
   --font: "Antique Legacy", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --bg: #fff; --text: #000; --mute: #b5b5b5; --line: #d4d4d4; --page: #efefef; --accent: #0055FF; --accent-ink: #fff; /* Tinte auf Akzentfläche (PDF-Hover) */
@@ -31,7 +31,7 @@
   --s2: 2px; --s4: 4px; --s8: 8px; --s16: 16px; --s24: 24px; --s40: 40px;
   /* Spaltenbreiten (aus der Skizze, 2000 px breit) */
   --c1: 14vw; --c2: 14.7vw; --c3: 14.1vw; --c4: 40.6vw;
-  --fs-s: clamp(12px, .7vw, 16px); --fs-l: clamp(15px, .95vw, 22px);
+  --fs-s: clamp(10.8px, .63vw, 14.4px); --fs-l: clamp(13.5px, .855vw, 19.8px); /* kleine Schrift / Lauftext, ca. 10 % kleiner als vorher */
   --dur: .22s; --ease: cubic-bezier(.3, .7, .2, 1);
   --cur-next: url("img/cursor-next.svg") 12 12, e-resize;
   --cur-prev: url("img/cursor-prev.svg") 12 12, w-resize;
@@ -212,7 +212,7 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
 
 /* ---------- Schmale Bildschirme ---------- */
 @media (max-width: 900px) {
-  :root { --fs-s: 13px; --fs-l: 17px; }
+  :root { --fs-s: 12px; --fs-l: 15.5px; }
   .texte { grid-template-columns: 1fr; padding: 0 var(--s16); }
   .fix { position: static; height: auto; padding-top: var(--s24); }
   .fix::after { display: none; }
