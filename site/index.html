@@ -31,7 +31,11 @@
   --s2: 2px; --s4: 4px; --s8: 8px; --s16: 16px; --s24: 24px; --s40: 40px;
   --edge: var(--s24); /* Abstand zum Bildschirmrand: links, rechts, oben, unten */
   /* Spaltenbreiten (aus der Skizze, 2000 px breit) */
-  --c1: 14vw; --c2: 14.7vw; --c3: 14.1vw; /* Lauftext: restliche Breite bis 24 px vor dem Rand */
+  /* Raster wie im typo-test: 6 gleiche Spalten, 24 px Zwischenraum, 24 px Rand */
+  --gutter: var(--s24);
+  --col: calc((100vw - var(--edge) * 2 - var(--gutter) * 5) / 6);
+  --c1: var(--col); --c2: var(--col); --c3: var(--col);
+  --text-w: calc(var(--col) * 2.5 + var(--gutter) * 2); /* Lauftext: ab Spalte 4, bis Mitte Spalte 6 */
   --fs-s: clamp(10.8px, .63vw, 14.4px); --fs-l: clamp(13.5px, .855vw, 19.8px); /* kleine Schrift / Lauftext, ca. 10 % kleiner als vorher */
   --dur: .22s; --ease: cubic-bezier(.3, .7, .2, 1);
   --cur-next: url("img/cursor-next.svg") 12 12, e-resize;
@@ -62,7 +66,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .fold > div { overflow: hidden; min-height: 0; }
 
 /* ---------- Ansicht: Texte ---------- */
-.texte { display: grid; grid-template-columns: var(--c1) var(--c2) var(--c3) minmax(0, 1fr); column-gap: var(--s40); padding: 0 var(--edge); }
+.texte { display: grid; grid-template-columns: var(--c1) var(--c2) var(--c3) minmax(0, 1fr); column-gap: var(--gutter); padding: 0 var(--edge); }
 .fix { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding-top: var(--edge); scrollbar-width: none; }
 .fix::-webkit-scrollbar { display: none; }
 .fix::after { content: ""; display: block; height: calc(var(--s40) * 3); } /* Platz für die Schalter unten */
@@ -101,7 +105,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .info .sp { grid-column: 1 / -1; height: var(--s16); }
 .info a:hover { color: var(--accent); }
 
-.text { padding: var(--edge) 0 60vh; font-size: var(--fs-l); line-height: 1.25; }
+.text { width: 100%; max-width: var(--text-w); padding: var(--edge) 0 60vh; font-size: var(--fs-l); line-height: 1.25; }
 .proj { color: var(--mute); padding-bottom: var(--s40); }
 .proj.on { color: var(--text); }
 .proj header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; margin-bottom: var(--s40); }
@@ -148,7 +152,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .cur.down i { transform: scale(.72); }
 .cur.prev.down i { transform: rotate(180deg) scale(.72); }
 .ov-img img { max-width: 40vw; max-height: 62vh; display: block; background: var(--page); }
-.ov-pages { position: absolute; top: 0; bottom: 0; left: calc(var(--edge) + var(--c1) + var(--s40)); right: calc(var(--edge) + var(--c1) + var(--s40)); overflow-y: auto; padding-top: var(--edge); scrollbar-width: none; overscroll-behavior: contain; }
+.ov-pages { position: absolute; top: 0; bottom: 0; left: calc(var(--edge) + var(--c1) + var(--gutter)); right: calc(var(--edge) + var(--c1) + var(--gutter)); overflow-y: auto; padding-top: var(--edge); scrollbar-width: none; overscroll-behavior: contain; }
 .ov-pages::-webkit-scrollbar { display: none; }
 .ov-pages .pg { height: calc(100vh - var(--edge) * 2); margin-bottom: var(--edge); display: flex; justify-content: center; }
 .ov-pages img { height: 100%; width: 100%; object-fit: contain; object-position: top center; display: block; }
@@ -158,7 +162,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .ov-ind .thumb { position: absolute; left: 0; top: 0; width: 100%; background: var(--text); will-change: transform; }
 
 /* ---------- Ansicht: Panels (Steuerpult) ---------- */
-.panels { display: grid; grid-template-columns: var(--c1) calc(var(--c2) + var(--s40) + var(--c3)) minmax(0, 1fr); column-gap: var(--s40); padding: var(--edge); min-height: 100vh; align-items: start; }
+.panels { display: grid; grid-template-columns: var(--c1) calc(var(--c2) + var(--gutter) + var(--c3)) minmax(0, 1fr); column-gap: var(--gutter); padding: var(--edge); min-height: 100vh; align-items: start; }
 .panels::after { content: ""; grid-column: 1 / -1; height: calc(var(--s40) * 2); } /* Platz für die Schalter unten */
 .panels h2 { font: inherit; margin: 0 0 var(--s16); }
 .panels section + section { margin-top: var(--s40); }
@@ -222,7 +226,7 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
   .colBilder, .colInfo { display: none; }
   .projs ul { columns: 2; column-gap: var(--s16); }
   .pdf { margin: 0; }
-  .text { padding-top: var(--s24); }
+  .text { padding-top: var(--s24); max-width: none; }
   .switches { left: var(--s16); bottom: var(--s16); background: var(--bg); padding: var(--s4) var(--s8) var(--s4) 0; }
   .panels { grid-template-columns: 1fr; padding: var(--s24) var(--s16); gap: var(--s24); }
   .ov-head { left: var(--s16); top: var(--s16); width: calc(100% - var(--s16) * 2); }
