@@ -14,7 +14,10 @@
       i = prev === null ? 0 : ((+prev || 0) + 1) % ACCENTS.length;
       localStorage.setItem("site-accent", i);
     } catch {}
-    if (ACCENTS[i]) document.documentElement.style.setProperty("--accent", ACCENTS[i]);
+    if (ACCENTS[i]) {
+      document.documentElement.style.setProperty("--accent", ACCENTS[i]);
+      document.documentElement.style.setProperty("--accent-ink", "#000"); // auf Orange/Grün schwarze Tinte
+    }
   })();
 </script>
 <style>
@@ -22,7 +25,7 @@
 @font-face { font-family: "Antique Legacy"; src: url("font/AntiqueLegacy-Book.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
 :root {
   --font: "Antique Legacy", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --bg: #fff; --text: #000; --mute: #b5b5b5; --line: #d4d4d4; --page: #efefef; --accent: #1f4fe6;
+  --bg: #fff; --text: #000; --mute: #b5b5b5; --line: #d4d4d4; --page: #efefef; --accent: #0055FF; --accent-ink: #fff; /* Tinte auf Akzentfläche (PDF-Hover) */
   --ok: #1fa25a; --warn: #e08a00;
   /* Abstände: nur diese Werte verwenden (8er-Regel) */
   --s2: 2px; --s4: 4px; --s8: 8px; --s16: 16px; --s24: 24px; --s40: 40px;
@@ -33,7 +36,7 @@
   --cur-next: url("img/cursor-next.svg") 12 12, e-resize;
   --cur-prev: url("img/cursor-prev.svg") 12 12, w-resize;
 }
-[data-theme="dark"] { --bg: #000000; --text: #E5E5E5; --mute: #575757; --line: #2b2b2b; --page: #1b1b1b; --accent: #5d86ff;
+[data-theme="dark"] { --bg: #000000; --text: #E5E5E5; --mute: #575757; --line: #2b2b2b; --page: #1b1b1b; --accent: #0055FF; --accent-ink: #E5E5E5;
   --cur-next: url("img/cursor-next-dark.svg") 12 12, e-resize; --cur-prev: url("img/cursor-prev-dark.svg") 12 12, w-resize; }
 * { box-sizing: border-box; }
 html { color-scheme: light; }
@@ -68,8 +71,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .accin p:last-child { margin-bottom: 0; }
 .accin a:not(.pdf) { color: var(--accent); }
 .pdf { display: block; width: 87px; margin: 0 auto; --pdf-ink: var(--text); --pdf-paper: var(--bg); transition: transform .8s cubic-bezier(0, .96, 0, 1); }
-.pdf:hover { --pdf-ink: #fff; --pdf-paper: var(--accent); transform: scale(.94); }
-[data-theme="dark"] .pdf:hover { --pdf-ink: #E5E5E5; }
+.pdf:hover { --pdf-ink: var(--accent-ink); --pdf-paper: var(--accent); transform: scale(.94); }
 .pdf svg { display: block; width: 100%; height: auto; }
 .pdf .pdf-dark, [data-theme="dark"] .pdf .pdf-light { display: none; }
 [data-theme="dark"] .pdf .pdf-dark { display: block; }
@@ -109,8 +111,6 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj .body h3 { font: inherit; font-weight: bold; }
 .proj.on .body a { color: var(--accent); }
 .proj .body a:hover { text-decoration: underline; }
-/* Artikel, der gleich eingeblendet wird: Text noch unsichtbar, bis die Wörter an der Reihe sind */
-.proj.on.waiting .body .w { opacity: 0; }
 
 .switches { position: fixed; left: var(--s40); bottom: var(--s40); display: flex; gap: var(--s40); z-index: 5; }
 .sw { display: flex; gap: var(--s8); }
@@ -495,52 +495,6 @@ for (const key of ["definition", "praevention"]) {
 }
 $("#projToggle").onclick = () => foldToggle($("#projToggle"), $("#projFold"));
 
-// Lauftext: jedes Wort in ein <span class="w"> packen (Links und Silbentrennung bleiben erhalten)
-function wrapWords(root) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  for (const n of nodes) {
-    const frag = document.createDocumentFragment();
-    for (const part of n.data.split(/(\s+)/)) {
-      if (!part) continue;
-      frag.append(/^\s+$/.test(part) ? part : el("span", { className: "w", textContent: part }));
-    }
-    n.replaceWith(frag);
-  }
-}
-// Kommt ein Artikel beim Scrollen nach unten zum ersten Mal ins Bild, erscheinen seine Wörter
-// eins nach dem anderen (ruckartig, wie beim Tippen) in der Akzentfarbe und springen nach 0,8 s
-// in die Textfarbe. Keine Bewegung, keine weichen Übergänge. Jeder Artikel nur einmal.
-const WORD = { step: 40, accent: 800 }; // ms pro Wort, ms in Akzentfarbe
-let wordTimer = 0, wordSection = null;
-function revealWords(sec, fromBelow) {
-  clearTimeout(wordTimer);
-  if (wordSection && wordSection !== sec) {
-    wordSection.classList.remove("waiting");
-    wordSection.querySelectorAll(".w").forEach(w => w.getAnimations().forEach(a => a.cancel()));
-  }
-  wordSection = sec;
-  if (reduceMotion || !sec || sec.revealed || !fromBelow) return;
-  sec.classList.add("waiting");
-  // kurz warten, damit beim schnellen Durchscrollen nicht jeder Artikel «verbraucht» wird
-  wordTimer = setTimeout(() => {
-    if (!sec.classList.contains("on")) return;
-    sec.revealed = true;
-    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-    const words = [...sec.querySelectorAll(".body .w")];
-    words.forEach((w, i) => {
-      const start = i * WORD.step, total = start + WORD.accent;
-      // unsichtbar bis zum Einsatz → sofort sichtbar in Akzentfarbe → am Ende sofort zurück zur normalen Farbe
-      w.animate([
-        { offset: 0, opacity: 0, color: accent, easing: "steps(1, end)" },
-        { offset: start / total, opacity: 1, color: accent, easing: "steps(1, end)" },
-        { offset: 1, opacity: 1, color: accent },
-      ], { duration: total });
-    });
-    sec.classList.remove("waiting");
-  }, 140);
-}
-
 // Projektliste + Textabschnitte
 const sections = [];
 projects.forEach((p, i) => {
@@ -552,7 +506,6 @@ projects.forEach((p, i) => {
   const sec = el("section", { className: "proj", id: p.slug });
   const head = el("header", {}, el("span", { className: "nr", textContent: p.nr }), el("h2", { textContent: p.titel }), el("span", { className: "sp" }));
   const body = el("div", { className: "body", innerHTML: p.html });
-  wrapWords(body);
   sec.append(head, body);
   $("#text").append(sec);
   sections.push(sec);
@@ -641,11 +594,9 @@ addEventListener("scroll", () => { cancelAnimationFrame(scrollRaf); scrollRaf = 
 addEventListener("resize", onScroll);
 
 function setActiveProject(i) {
-  const prevIdx = activeIdx;
   activeIdx = i;
   const p = projects[i];
   sections.forEach((s, j) => s.classList.toggle("on", j === i));
-  revealWords(sections[i], prevIdx >= 0 && i > prevIdx); // beim Laden nicht animieren
   projects.forEach((q, j) => q.navEl.classList.toggle("on", j === i));
   fillColumns(p);
   history.replaceState(null, "", location.pathname + location.search + "#" + p.slug);
