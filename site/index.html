@@ -34,8 +34,9 @@ a:hover, button.lnk:hover { color: var(--accent); }
 ul { list-style: none; margin: 0; padding: 0; }
 
 /* Pfeil ▶, dreht sich beim Aufklappen */
-.tri::after { content: "▶"; display: inline-block; font-size: .6em; margin-left: var(--s8); transition: transform var(--dur) var(--ease); }
-[aria-expanded="true"] .tri::after { transform: rotate(90deg); }
+.tri { display: inline-grid; place-items: center; width: 8px; height: 8px; margin-left: var(--s8); flex: none; align-self: center; transition: transform var(--dur) var(--ease); }
+.tri::after { content: ""; width: 6px; height: 7px; background: currentColor; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+[aria-expanded="true"] > .tri { transform: rotate(90deg); }
 
 /* Aufklappen mit kurzer Animation */
 .fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur) var(--ease); }
@@ -53,8 +54,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 .accin p { margin: 0 0 var(--s16); }
 .accin p:last-child { margin-bottom: 0; }
 .accin a:not(.pdf) { color: var(--accent); }
-.pdf { display: block; width: 87px; margin: 0 auto; color: var(--text); }
-.pdf:hover { color: var(--accent); }
+.pdf { display: block; width: 87px; margin: 0 auto; color: var(--text); transition: transform var(--dur) var(--ease); }
+.pdf:hover { color: var(--accent); transform: scale(.94); }
 .pdf svg { display: block; width: 100%; height: auto; }
 .accin .text + .pdf, .accin div + .pdf { margin-top: var(--s24); }
 .projs { padding-top: var(--s40); }
@@ -64,12 +65,18 @@ ul { list-style: none; margin: 0; padding: 0; }
 .projs:hover .navrow.on:not(:hover) { color: var(--mute); } /* nie zwei Namen gleichzeitig hervorgehoben */
 .colh { margin: 0 0 var(--s40); font-weight: normal; font-size: var(--fs-s); }
 .files { font-size: var(--fs-l); line-height: 1.25; }
+.files li { color: var(--mute); }
+.files li.here { color: var(--text); }
+.files button:hover { color: var(--accent); }
 .files button { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .files .none { color: var(--mute); font-size: var(--fs-s); }
 .info { display: grid; grid-template-columns: 5.5em 1fr; margin: 0; }
 .info dt, .info dd { margin: 0; }
+/* Werte wechseln maskiert: alter Wert gleitet nach oben weg, neuer kommt von unten */
+.info dd { display: grid; overflow: hidden; }
+.info dd > span { grid-area: 1 / 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .info .sp { grid-column: 1 / -1; height: var(--s16); }
-.info a { color: var(--accent); }
+.info a:hover { color: var(--accent); }
 
 .text { padding: var(--s40) 0 60vh; font-size: var(--fs-l); line-height: 1.25; }
 .proj { color: var(--mute); padding-bottom: var(--s40); }
@@ -102,18 +109,27 @@ ul { list-style: none; margin: 0; padding: 0; }
 .ov-list button.on { color: var(--accent); }
 .ov-list:hover button.on:not(:hover) { color: var(--text); }
 .ov-head .dl { display: inline-block; margin-top: var(--s16); color: var(--accent); }
-.ov-img { position: absolute; inset: 0; display: grid; place-items: center; }
-.ov-img.prev { cursor: var(--cur-prev); }
-.ov-img.next { cursor: var(--cur-next); }
+.ov-img { position: absolute; inset: 0; display: grid; place-items: center; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.ov-img img { pointer-events: none; -webkit-user-drag: none; }
+.ov-img.prev, .ov-img.next { cursor: none; }
+/* eigener Pfeil-Cursor: folgt der Maus, wird beim Klicken kleiner */
+.cur { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .15s; }
+.cur.show { opacity: 1; }
+.cur i { display: block; width: 25px; height: 25px; margin: -12px 0 0 -12px; background: url("img/cursor-next.svg") center / contain no-repeat;
+  transition: transform var(--dur) var(--ease); }
+[data-theme="dark"] .cur i { background-image: url("img/cursor-next-dark.svg"); }
+.cur.prev i { transform: rotate(180deg); }
+.cur.down i { transform: scale(.72); }
+.cur.prev.down i { transform: rotate(180deg) scale(.72); }
 .ov-img img { max-width: 40vw; max-height: 62vh; display: block; background: var(--page); }
-.ov-pages { position: absolute; top: 0; bottom: 0; left: calc(var(--s40) * 2 + var(--c1)); right: calc(var(--s40) * 2 + var(--c1)); overflow-y: auto; scroll-snap-type: y mandatory; scroll-padding-top: var(--s40); padding-top: var(--s40); scrollbar-width: none; }
+.ov-pages { position: absolute; top: 0; bottom: 0; left: calc(var(--s40) * 2 + var(--c1)); right: calc(var(--s40) * 2 + var(--c1)); overflow-y: auto; padding-top: var(--s40); scrollbar-width: none; overscroll-behavior: contain; }
 .ov-pages::-webkit-scrollbar { display: none; }
-.ov-pages .pg { height: calc(100vh - var(--s40) * 2); margin-bottom: var(--s40); scroll-snap-align: start; display: flex; justify-content: center; }
+.ov-pages .pg { height: calc(100vh - var(--s40) * 2); margin-bottom: var(--s40); display: flex; justify-content: center; }
 .ov-pages img { height: 100%; width: 100%; object-fit: contain; object-position: top center; display: block; }
-.ov-ind { position: absolute; right: var(--s40); top: var(--s40); width: 8px; height: 13vh; display: flex; flex-direction: column; }
-.ov-ind button { flex: 1; background: var(--line); }
-[data-theme="light"] .ov-ind button { background: #cfcfcf; }
-.ov-ind button.on { background: var(--text); }
+/* Scroll-Anzeige: der schwarze Balken folgt dem Scrollen stufenlos */
+.ov-ind { position: absolute; right: var(--s40); top: var(--s40); width: 8px; height: 13vh; background: #cfcfcf; cursor: pointer; }
+[data-theme="dark"] .ov-ind { background: var(--line); }
+.ov-ind .thumb { position: absolute; left: 0; top: 0; width: 100%; background: var(--text); will-change: transform; }
 
 /* ---------- Ansicht: Panels (Steuerpult) ---------- */
 .panels { display: grid; grid-template-columns: var(--c1) calc(var(--c2) + var(--s40) + var(--c3)) var(--c4); column-gap: var(--s40); padding: var(--s40); min-height: 100vh; align-items: start; }
@@ -280,6 +296,8 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
   <div class="ov-ind" id="ovInd"></div>
 </div>
 
+<div class="cur" id="cur" aria-hidden="true"><i></i></div>
+
 <div class="switches">
   <span class="sw" id="swView"><button data-v="texte">Texte</button><button data-v="panels">Panels<span class="dot hidden" id="ledDot"></span></button></span>
   <span class="sw" id="swTheme"><button data-t="light">Light</button><button data-t="dark">Dark</button></span>
@@ -369,10 +387,15 @@ try {
 } catch {}
 
 // Auf- und Zuklappen mit Animation (.fold) und drehendem Pfeil
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function foldToggle(btn, fold, open = btn.getAttribute("aria-expanded") !== "true") {
   btn.setAttribute("aria-expanded", open);
   fold.classList.toggle("open", open);
   fold.inert = !open;
+  // Ist der Inhalt eine Liste, erscheinen die Einträge nacheinander
+  if (open && !reduceMotion) fold.querySelectorAll("li").forEach((li, i) => li.animate(
+    [{ opacity: 0, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }],
+    { duration: 260, delay: 40 + i * 28, easing: "cubic-bezier(.3,.7,.2,1)", fill: "backwards" }));
 }
 
 // Definition und Prävention: Text aus text.md, darunter die «Please share»-Kachel,
@@ -419,18 +442,49 @@ function scrollToProject(i) {
   scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
-function fillColumns(p) {
-  const files = $("#files"); files.replaceChildren();
-  if (!p) return;
-  if (!p.bilder.length) files.append(el("li", { className: "none", textContent: "Keine Bilder" }));
-  p.bilder.forEach((b, i) => files.append(el("li", {}, el("button", { className: "lnk", textContent: b.name, title: b.name, onclick: () => openImage(p, i) }))));
+// Spalte «Bilder»: immer alle Dateinamen; die des aktiven Projekts schwarz, alle anderen hellgrau
+const fileItems = [];
+projects.forEach(p => p.bilder.forEach((b, i) => {
+  const li = el("li", {}, el("button", { textContent: b.name, title: b.name, onclick: () => openImage(p, i) }));
+  li.project = p; fileItems.push(li); $("#files").append(li);
+}));
+if (!fileItems.length) $("#files").append(el("li", { className: "none", textContent: "Keine Bilder" }));
 
-  const info = $("#info"); info.replaceChildren();
-  const row = (k, v) => info.append(el("dt", { textContent: k }), v instanceof Node ? el("dd", {}, v) : el("dd", { textContent: v || "–" }));
-  row("Nr.", p.nr); row("Titel", p.titel);
-  info.append(el("div", { className: "sp" }));
-  row("Autor:in", p.autorin); row("Datum", p.datum);
-  row("Quelle", /^https?:\/\//.test(p.quelle) ? el("a", { href: p.quelle, target: "_blank", rel: "noopener", textContent: "Ansehen" }) : p.quelle);
+function fillColumns(p) {
+  if (!p) return;
+  let first = null;
+  for (const li of fileItems) { const on = li.project === p; li.classList.toggle("here", on); if (on && !first) first = li; }
+  // aktive Dateinamen in Sicht holen, falls die Liste länger als der Bildschirm ist
+  if (first) {
+    const col = first.closest(".fix"), r = first.getBoundingClientRect(), last = fileItems.filter(li => li.project === p).pop().getBoundingClientRect();
+    if (r.top < 0 || last.bottom > innerHeight) col.scrollTo({ top: col.scrollTop + r.top - innerHeight * 0.2, behavior: "smooth" });
+  }
+  setInfo("nr", p.nr); setInfo("titel", p.titel);
+  setInfo("autorin", p.autorin); setInfo("datum", p.datum);
+  setInfo("quelle", /^https?:\/\//.test(p.quelle) ? { href: p.quelle, text: "Ansehen" } : p.quelle);
+}
+
+// Projektinformationen: jede Zeile ist eine Maske, der Wert gleitet beim Wechsel hinein
+const infoDd = {};
+for (const [k, label] of [["nr", "Nr."], ["titel", "Titel"], [null], ["autorin", "Autor:in"], ["datum", "Datum"], ["quelle", "Quelle"]]) {
+  if (!k) { $("#info").append(el("div", { className: "sp" })); continue; }
+  infoDd[k] = el("dd");
+  $("#info").append(el("dt", { textContent: label }), infoDd[k]);
+}
+function setInfo(k, v) {
+  const dd = infoDd[k];
+  const key = typeof v === "object" && v ? v.href : (v || "–");
+  if (dd.dataset.v === key) return;
+  dd.dataset.v = key;
+  const span = el("span");
+  if (typeof v === "object" && v) span.append(el("a", { href: v.href, target: "_blank", rel: "noopener", textContent: v.text }));
+  else span.textContent = v || "–";
+  const old = [...dd.children];
+  dd.append(span);
+  if (!old.length || reduceMotion) { old.forEach(o => o.remove()); return; }
+  const opt = { duration: 420, easing: "cubic-bezier(.6,0,.2,1)" };
+  span.animate([{ transform: "translateY(100%)" }, { transform: "none" }], opt);
+  old.forEach(o => o.animate([{ transform: "none" }, { transform: "translateY(-100%)" }], { ...opt, fill: "forwards" }).onfinish = () => o.remove());
 }
 
 // Welcher Abschnitt ist aktiv? Der, dessen Anfang zuletzt über 40 % der Fensterhöhe gescrollt ist.
@@ -481,6 +535,7 @@ function closeOv() {
   $("#ov").classList.add("hidden");
   document.body.style.overflow = "";
   $("#ovImg img").removeAttribute("src");
+  overImg = false; cur.classList.remove("show", "down");
   if (wasPages && view === "texte") applyLed(projects[activeIdx]);
 }
 $("#ovClose").onclick = closeOv;
@@ -502,14 +557,24 @@ function openImage(p, i) {
   setCursor(lastX);
 }
 // Pfeil-Cursor: linke Hälfte zurück, rechte Hälfte weiter; Klick blättert
-let lastX = innerWidth;
+let lastX = innerWidth, lastY = innerHeight / 2, overImg = false;
+const cur = $("#cur");
 function setCursor(x) {
   const multi = ovOpen && ovOpen.type === "img" && ovOpen.project.bilder.length > 1;
   const prev = multi && x < innerWidth / 2;
   $("#ovImg").classList.toggle("prev", prev);
   $("#ovImg").classList.toggle("next", multi && !prev);
+  cur.classList.toggle("prev", prev);
+  cur.classList.toggle("show", multi && overImg && matchMedia("(hover: hover)").matches);
 }
-$("#ovImg").addEventListener("mousemove", e => { lastX = e.clientX; setCursor(lastX); });
+$("#ovImg").addEventListener("pointermove", e => {
+  overImg = true; lastX = e.clientX; lastY = e.clientY;
+  cur.style.transform = `translate(${lastX}px, ${lastY}px)`;
+  setCursor(lastX);
+});
+$("#ovImg").addEventListener("pointerleave", () => { overImg = false; cur.classList.remove("show", "down"); });
+$("#ovImg").addEventListener("pointerdown", e => { cur.classList.add("down"); e.preventDefault(); });
+addEventListener("pointerup", () => cur.classList.remove("down"));
 $("#ovImg").onclick = e => {
   if (!ovOpen || ovOpen.type !== "img") return;
   openImage(ovOpen.project, ovOpen.i + (e.clientX < innerWidth / 2 ? -1 : 1));
@@ -522,10 +587,9 @@ function openPages(key) {
   $("#ovList").replaceChildren();
   $("#ovDl").classList.toggle("hidden", !pg.pdf); if (pg.pdf) $("#ovDl").href = pg.pdf;
   const box = $("#ovPages"); box.replaceChildren();
-  const ind = $("#ovInd"); ind.replaceChildren();
+  const ind = $("#ovInd"); ind.replaceChildren(el("div", { className: "thumb" }));
   pg.seiten.forEach((src, i) => {
     box.append(el("div", { className: "pg" }, el("img", { src, alt: `${pg.titel}, Seite ${i + 1}`, loading: i < 2 ? "eager" : "lazy" })));
-    ind.append(el("button", { "aria-label": "Seite " + (i + 1), onclick: () => box.children[i].scrollIntoView({ behavior: "smooth" }) }));
   });
   openOv("pages");
   box.scrollTop = 0; updatePageNr();
@@ -536,10 +600,27 @@ function updatePageNr() {
   if (!ovOpen || ovOpen.type !== "pages") return;
   const box = $("#ovPages"), n = box.children.length;
   const h = box.children[0] ? box.children[0].offsetHeight + parseFloat(getComputedStyle(box.children[0]).marginBottom) : 1;
-  const i = Math.min(n - 1, Math.round(box.scrollTop / h));
-  $("#ovInfo").textContent = n ? `Seite ${i + 1}/${n}` : "";
-  [...$("#ovInd").children].forEach((b, j) => b.classList.toggle("on", j === i));
+  const i = Math.max(0, Math.min(n - 1, Math.floor((box.scrollTop + h * 0.5) / h)));
+  const txt = n ? `Seite ${i + 1}/${n}` : "";
+  if ($("#ovInfo").textContent !== txt) $("#ovInfo").textContent = txt;
+  // Balken: Höhe = eine Seite, Position stufenlos nach Scrollfortschritt
+  const ind = $("#ovInd"), th = ind.firstChild, track = ind.clientHeight, size = track / Math.max(1, n);
+  const max = box.scrollHeight - box.clientHeight, prog = max > 0 ? box.scrollTop / max : 0;
+  th.style.height = size + "px";
+  th.style.transform = `translateY(${prog * (track - size)}px)`;
 }
+// Klick oder Ziehen auf der Anzeige springt an die Stelle
+function indJump(e) {
+  const ind = $("#ovInd"), box = $("#ovPages"), r = ind.getBoundingClientRect();
+  const prog = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+  box.scrollTo({ top: prog * (box.scrollHeight - box.clientHeight), behavior: e.type === "pointerdown" ? "smooth" : "auto" });
+}
+$("#ovInd").addEventListener("pointerdown", e => {
+  indJump(e); $("#ovInd").setPointerCapture(e.pointerId);
+  const move = ev => indJump(ev);
+  $("#ovInd").addEventListener("pointermove", move);
+  $("#ovInd").addEventListener("pointerup", () => $("#ovInd").removeEventListener("pointermove", move), { once: true });
+});
 $("#ovPages").addEventListener("scroll", () => requestAnimationFrame(updatePageNr), { passive: true });
 
 addEventListener("keydown", e => {
