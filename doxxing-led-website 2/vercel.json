@@ -1,5 +1,0 @@
-{
-  "framework": null,
-  "buildCommand": "node build.js",
-  "outputDirectory": "dist"
-}
