@@ -109,8 +109,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj .body h3 { font: inherit; font-weight: bold; }
 .proj.on .body a { color: var(--accent); }
 .proj .body a:hover { text-decoration: underline; }
-/* Artikel, der gleich eingeblendet wird: Wörter bleiben grau, bis sie an der Reihe sind */
-.proj.on.waiting .body .w { color: var(--mute); }
+/* Artikel, der gleich eingeblendet wird: Text noch unsichtbar, bis die Wörter an der Reihe sind */
+.proj.on.waiting .body .w { opacity: 0; }
 
 .switches { position: fixed; left: var(--s40); bottom: var(--s40); display: flex; gap: var(--s40); z-index: 5; }
 .sw { display: flex; gap: var(--s8); }
@@ -508,9 +508,10 @@ function wrapWords(root) {
     n.replaceWith(frag);
   }
 }
-// Kommt ein Artikel beim Scrollen nach unten zum ersten Mal ins Bild, färben sich seine Wörter
-// nacheinander: grau → Akzentfarbe → langsam in die Textfarbe. Nur Farbe, keine Bewegung. Jeder Artikel nur einmal.
-const WORD = { step: 45, duration: 1800 };
+// Kommt ein Artikel beim Scrollen nach unten zum ersten Mal ins Bild, erscheinen seine Wörter
+// eins nach dem anderen (ruckartig, wie beim Tippen) in der Akzentfarbe und springen nach 0,8 s
+// in die Textfarbe. Keine Bewegung, keine weichen Übergänge. Jeder Artikel nur einmal.
+const WORD = { step: 40, accent: 800 }; // ms pro Wort, ms in Akzentfarbe
 let wordTimer = 0, wordSection = null;
 function revealWords(sec, fromBelow) {
   clearTimeout(wordTimer);
@@ -520,25 +521,23 @@ function revealWords(sec, fromBelow) {
   }
   wordSection = sec;
   if (reduceMotion || !sec || sec.revealed || !fromBelow) return;
-  sec.classList.add("waiting"); // bis die Animation startet, grau lassen statt kurz schwarz aufblitzen
+  sec.classList.add("waiting");
   // kurz warten, damit beim schnellen Durchscrollen nicht jeder Artikel «verbraucht» wird
   wordTimer = setTimeout(() => {
     if (!sec.classList.contains("on")) return;
     sec.revealed = true;
-    const css = getComputedStyle(document.documentElement);
-    const accent = css.getPropertyValue("--accent").trim(), mute = css.getPropertyValue("--mute").trim();
-    sec.classList.remove("waiting");
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
     const words = [...sec.querySelectorAll(".body .w")];
-    const colorOf = new Map();
     words.forEach((w, i) => {
-      const parent = w.parentElement;
-      if (!colorOf.has(parent)) colorOf.set(parent, getComputedStyle(parent).color);
+      const start = i * WORD.step, total = start + WORD.accent;
+      // unsichtbar bis zum Einsatz → sofort sichtbar in Akzentfarbe → am Ende sofort zurück zur normalen Farbe
       w.animate([
-        { color: mute },
-        { color: accent, offset: .18 },
-        { color: colorOf.get(parent) },
-      ], { duration: WORD.duration, delay: i * WORD.step, easing: "linear", fill: "backwards" });
+        { offset: 0, opacity: 0, color: accent, easing: "steps(1, end)" },
+        { offset: start / total, opacity: 1, color: accent, easing: "steps(1, end)" },
+        { offset: 1, opacity: 1, color: accent },
+      ], { duration: total });
     });
+    sec.classList.remove("waiting");
   }, 140);
 }
 
