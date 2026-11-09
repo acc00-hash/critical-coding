@@ -97,7 +97,7 @@ body.drag .add { border-color: var(--accent); color: var(--text); }
         <option value="stretch">Strecken</option>
       </select>
     </label>
-    <label class="check"><input type="checkbox" id="pixel"> Pixelig (ohne Glättung)</label>
+    <label class="check"><input type="checkbox" id="pixel"> <span id="pixelLbl">Pixelig (ohne Glättung)</span></label>
     <button id="black">Gewählten Screen schwarz</button>
     <button id="blackAll">Alle schwarz</button>
   </div>
@@ -151,12 +151,13 @@ try { layout = { ...DEFAULT_LAYOUT, ...JSON.parse(ls("led-layout2", "{}")) }; } 
 // ---- Einstellungen ----
 for (const sv of SERVERS) sv.addr = ls("led-addr-" + sv.id, sv.addr);
 let fit = ls("led-fit", "contain");
-let pixel = ls("led-pixel", "0") === "1";
-$("#fit").value = fit; $("#pixel").checked = pixel;
+$("#fit").value = fit;
 
 const screens = SCREENS.map(d => ({
   ...d, w: PANEL_W, h: PANEL_H * d.panels,
   selId: ls("led-sel-" + d.id, d.id === "wand" ? ls("led-sel", "") : ""), // "led-sel" = alte Einzelauswahl
+  // Standard: 4er-Wand geglättet, Einzelpanels pixelig
+  pixel: ls("led-pixel-" + d.id, d.panels > 1 ? "0" : "1") === "1",
   cur: null, start: 0, token: 0,
 }));
 let active = screens.find(s => s.id === ls("led-active", "wand")) || screens[0];
@@ -196,6 +197,8 @@ for (const s of screens) {
 function setActive(s) {
   active = s; save("led-active", s.id);
   for (const x of screens) x.el.classList.toggle("active", x === s);
+  $("#pixel").checked = s.pixel;
+  $("#pixelLbl").textContent = "Pixelig (ohne Glättung) – " + s.name;
   drawList();
 }
 
@@ -225,7 +228,7 @@ async function store(mode, fn) {
 
 // ---- Bild auf Screengrösse bringen ----
 const cache = new Map();
-function place(c, img, sw, sh, W, H) {
+function place(c, img, sw, sh, W, H, pixel) {
   let dw = W, dh = H;
   if (fit !== "stretch") {
     const s = fit === "cover" ? Math.max(W / sw, H / sh) : Math.min(W / sw, H / sh);
@@ -237,7 +240,7 @@ function place(c, img, sw, sh, W, H) {
 }
 
 // ---- Bilder (GIF, PNG …) vorab in Einzelbilder zerlegen, je Screengrösse ----
-async function decode(item, W, H) {
+async function decode(item, W, H, pixel) {
   const key = [item.id, W, H, fit, pixel].join();
   if (cache.has(key)) return cache.get(key);
   const p = (async () => {
@@ -254,7 +257,7 @@ async function decode(item, W, H) {
         const { image } = await dec.decode({ frameIndex: i });
         total += Math.max(20, (image.duration || 100000) / 1000);
         o.fillStyle = "#000"; o.fillRect(0, 0, W, H);
-        place(o, image, image.displayWidth, image.displayHeight, W, H);
+        place(o, image, image.displayWidth, image.displayHeight, W, H, pixel);
         frames.push({ bmp: await createImageBitmap(oc), end: total });
         image.close();
       }
@@ -263,7 +266,7 @@ async function decode(item, W, H) {
       if (type === "image/gif") throw new Error("Dieser Browser kann keine GIFs dekodieren. Bitte Chrome oder Edge verwenden.");
       const bmp = await createImageBitmap(item.blob);
       o.fillStyle = "#000"; o.fillRect(0, 0, W, H);
-      place(o, bmp, bmp.width, bmp.height, W, H);
+      place(o, bmp, bmp.width, bmp.height, W, H, pixel);
       bmp.close();
       total = 1000;
       frames.push({ bmp: await createImageBitmap(oc), end: total });
@@ -304,8 +307,8 @@ function renderScreen(s, t) {
   if (cur && cur.video) {
     const v = cur.video;
     if (v.readyState >= 2 && v.videoWidth) {
-      ctx.imageSmoothingEnabled = !pixel;
-      place(ctx, v, v.videoWidth, v.videoHeight, s.w, s.h);
+      ctx.imageSmoothingEnabled = !s.pixel;
+      place(ctx, v, v.videoWidth, v.videoHeight, s.w, s.h, s.pixel);
     }
   } else if (cur) {
     const tt = (t - s.start) % cur.total;
@@ -327,7 +330,7 @@ async function assign(s, id) {
   const item = items.find(i => i.id === id);
   if (!item) { setCur(s, null); return; }
   try {
-    const next = item.kind === "video" ? { video: await startVideo(item) } : await decode(item, s.w, s.h);
+    const next = item.kind === "video" ? { video: await startVideo(item) } : await decode(item, s.w, s.h, s.pixel);
     if (my !== s.token) { if (next.video) stopVideo(next.video); return; } // inzwischen anderes gewählt
     setCur(s, next);
   } catch (e) { if (my === s.token) alert(e.message); }
@@ -499,7 +502,7 @@ $("#connect").onclick = () => {
   checkLayout(); connectAll();
 };
 $("#fit").onchange = e => { fit = e.target.value; save("led-fit", fit); reloadAll(); };
-$("#pixel").onchange = e => { pixel = e.target.checked; save("led-pixel", pixel ? "1" : "0"); reloadAll(); };
+$("#pixel").onchange = e => { active.pixel = e.target.checked; save("led-pixel-" + active.id, active.pixel ? "1" : "0"); assign(active, active.selId); };
 $("#black").onclick = () => assign(active, "");
 $("#blackAll").onclick = () => { for (const s of screens) assign(s, ""); };
 
