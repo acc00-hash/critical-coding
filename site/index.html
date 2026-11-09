@@ -108,6 +108,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .ov-meta { display: grid; grid-template-columns: 1fr 1fr; }
 .ov-meta .ov-info { justify-self: end; }
 .ov-list { margin-top: var(--s8); }
+.ov-list li { overflow: hidden; }
 .ov-list button { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-list button.on { color: var(--accent); }
 .ov-list:hover button.on:not(:hover) { color: var(--text); }
@@ -215,7 +216,7 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
   <div class="fix nav" id="nav">
     <div>Doxxing</div>
     <div id="accs"></div>
-    <button class="navrow lnk" id="projToggle" aria-expanded="true" aria-controls="projFold"><span>Projekte</span><span class="tri"></span></button>
+    <button class="navrow lnk" id="projToggle" aria-expanded="true" aria-controls="projFold"><span>Artikel</span><span class="tri"></span></button>
     <div class="fold open" id="projFold"><div><div class="projs"><ul id="projs"></ul></div></div></div>
   </div>
   <div class="fix colBilder">
@@ -223,7 +224,7 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
     <ul class="files" id="files"></ul>
   </div>
   <div class="fix colInfo">
-    <h2 class="colh">Projektinformationen</h2>
+    <h2 class="colh">Zusatz</h2>
     <dl class="info" id="info"></dl>
   </div>
   <main class="text" id="text"></main>
@@ -417,6 +418,10 @@ function splitLines(p) {
   p.replaceChildren(...lines.map(l => el("span", { className: "mline" }, el("span", { textContent: l.trimStart() }))));
   return () => { p.innerHTML = original; };
 }
+let splitRestores = [];
+function restoreSplits() { splitRestores.forEach(f => f()); splitRestores = []; }
+let lastW = innerWidth;
+addEventListener("resize", () => { if (innerWidth !== lastW) { lastW = innerWidth; restoreSplits(); } });
 function revealText(box, startDelay = 0) {
   let d = startDelay;
   const anims = [];
@@ -424,7 +429,7 @@ function revealText(box, startDelay = 0) {
     const restore = splitLines(p);
     if (!restore) { p.classList.add("mline"); anims.push(maskIn(p, d)); d += STAGGER; continue; }
     const parts = [...p.children].map(line => { const a = maskIn(line.firstChild, d); d += STAGGER; return a; });
-    Promise.all(parts.map(a => a.finished)).then(restore, restore);
+    splitRestores.push(restore);
     anims.push(...parts);
   }
   return anims;
@@ -434,7 +439,8 @@ function foldToggle(btn, fold, open = btn.getAttribute("aria-expanded") !== "tru
   btn.setAttribute("aria-expanded", open);
   fold.classList.toggle("open", open);
   fold.inert = !open;
-  if (!open || reduceMotion) return;
+  if (!open) { if (fold.querySelector(".mline")) setTimeout(() => { if (!fold.classList.contains("open")) restoreSplits(); }, 300); return; }
+  if (reduceMotion) return;
   // Listen: Einträge nacheinander aus der Maske; Texte: Zeile für Zeile
   const items = fold.querySelectorAll("li");
   if (items.length) items.forEach((li, i) => li.firstChild && maskIn(li.firstChild, i * STAGGER));
@@ -502,9 +508,7 @@ function fillColumns(p) {
     const col = first.closest(".fix"), r = first.getBoundingClientRect(), last = fileItems.filter(li => li.project === p).pop().getBoundingClientRect();
     if (r.top < 0 || last.bottom > innerHeight) col.scrollTo({ top: col.scrollTop + r.top - innerHeight * 0.2, behavior: "smooth" });
   }
-  setInfo("nr", p.nr); setInfo("titel", p.titel);
-  setInfo("autorin", p.autorin); setInfo("datum", p.datum);
-  setInfo("quelle", /^https?:\/\//.test(p.quelle) ? { href: p.quelle, text: "Ansehen" } : p.quelle);
+  updateInfo(p);
 }
 
 // Projektinformationen: jede Zeile ist eine Maske, der Wert gleitet beim Wechsel hinein
@@ -514,25 +518,37 @@ for (const [k, label] of [["nr", "Nr."], ["titel", "Titel"], [null], ["autorin",
   infoDd[k] = el("dd");
   $("#info").append(el("dt", { textContent: label }), infoDd[k]);
 }
-function setInfo(k, v) {
+let infoShown = null, infoWanted = null, infoBusy = false, infoTimer = 0;
+function updateInfo(p) {
+  infoWanted = p;
+  clearTimeout(infoTimer);
+  infoTimer = setTimeout(runInfo, infoShown ? 120 : 0); // erst wechseln, wenn der Artikel kurz stehen bleibt
+}
+async function runInfo() {
+  if (infoBusy || !infoWanted || infoWanted === infoShown) return;
+  const p = infoWanted, first = !infoShown;
+  infoBusy = true; infoShown = p;
+  await Promise.all([
+    setInfo("nr", p.nr, first), setInfo("titel", p.titel, first),
+    setInfo("autorin", p.autorin, first), setInfo("datum", p.datum, first),
+    setInfo("quelle", /^https?:\/\//.test(p.quelle) ? { href: p.quelle, text: "Ansehen" } : p.quelle, first),
+  ]);
+  infoBusy = false;
+  if (infoWanted !== infoShown) runInfo(); // inzwischen weitergescrollt → direkt zum neuesten
+}
+function setInfo(k, v, instant) {
   const dd = infoDd[k];
   const key = typeof v === "object" && v ? v.href : (v || "–");
-  if (dd.dataset.v === key) return;
+  if (dd.dataset.v === key) return null;
   dd.dataset.v = key;
   const span = el("span");
   if (typeof v === "object" && v) span.append(el("a", { href: v.href, target: "_blank", rel: "noopener", textContent: v.text }));
   else span.textContent = v || "–";
-  // Was schon hinausgleitet, sofort entfernen; der aktuell sichtbare Wert gleitet von seiner jetzigen Position weg
-  dd.querySelectorAll("span.leaving").forEach(o => o.remove());
-  const old = dd.lastElementChild;
+  const old = [...dd.children];
   dd.append(span);
-  if (!old || reduceMotion) { if (old) old.remove(); return; }
-  const from = getComputedStyle(old).transform;
-  old.getAnimations().forEach(a => a.cancel());
-  old.classList.add("leaving");
-  old.animate([{ transform: from === "none" ? "none" : from }, { transform: "translateY(-100%)" }], { ...MASK, fill: "forwards" })
-    .finished.then(() => old.remove(), () => {});
-  maskIn(span);
+  if (instant || !old.length || reduceMotion) { old.forEach(o => o.remove()); return null; }
+  const out = old.map(o => o.animate([{ transform: "none" }, { transform: "translateY(-100%)" }], { ...MASK, fill: "forwards" }).finished);
+  return Promise.all([maskIn(span).finished, ...out]).catch(() => {}).then(() => old.forEach(o => o.remove()));
 }
 
 // Welcher Abschnitt ist aktiv? Der, dessen Anfang zuletzt über 40 % der Fensterhöhe gescrollt ist.
@@ -599,8 +615,19 @@ function openImage(p, i) {
       el("li", {}, el("button", { textContent: x.name, title: x.name, onclick: () => openImage(p, j) }))));
   }
   [...$("#ovList").children].forEach((li, j) => li.firstChild.classList.toggle("on", j === i));
-  $("#ovImg img").src = b.url; $("#ovImg img").alt = b.name;
-  if (fresh) openOv("img");
+  const img = $("#ovImg img");
+  img.src = b.url; img.alt = b.name;
+  if (fresh) {
+    openOv("img");
+    if (!reduceMotion) {
+      [...$("#ovList").children].forEach((li, j) => maskIn(li.firstChild, j * STAGGER));
+      img.style.opacity = 0;
+      img.decode().catch(() => {}).then(() => {
+        img.style.opacity = "";
+        img.animate([{ transform: "scale(.5)" }, { transform: "none" }], { duration: 750, easing: "cubic-bezier(0, .96, 0, 1)" });
+      });
+    }
+  }
   setCursor(lastX);
 }
 // Pfeil-Cursor: linke Hälfte zurück, rechte Hälfte weiter; Klick blättert
