@@ -20,7 +20,7 @@
   --cur-next: url("img/cursor-next.svg") 12 12, e-resize;
   --cur-prev: url("img/cursor-prev.svg") 12 12, w-resize;
 }
-[data-theme="dark"] { --bg: #0c0c0c; --text: #f1f1f1; --mute: #575757; --line: #2b2b2b; --page: #1b1b1b; --accent: #5d86ff;
+[data-theme="dark"] { --bg: #000000; --text: #E5E5E5; --mute: #575757; --line: #2b2b2b; --page: #1b1b1b; --accent: #5d86ff;
   --cur-next: url("img/cursor-next-dark.svg") 12 12, e-resize; --cur-prev: url("img/cursor-prev-dark.svg") 12 12, w-resize; }
 * { box-sizing: border-box; }
 html { color-scheme: light; }
@@ -57,13 +57,15 @@ ul { list-style: none; margin: 0; padding: 0; }
 .pdf { display: block; width: 87px; margin: 0 auto; color: var(--text); transition: transform .8s cubic-bezier(0, .96, 0, 1); }
 .pdf:hover { color: var(--accent); transform: scale(.94); }
 .pdf svg { display: block; width: 100%; height: auto; }
+.pdf .pdf-dark, [data-theme="dark"] .pdf .pdf-light { display: none; }
+[data-theme="dark"] .pdf .pdf-dark { display: block; }
 .accin .text + .pdf, .accin div + .pdf { margin-top: var(--s24); }
 .projs { padding-top: var(--s40); }
 .projs li { overflow: hidden; }
 .mline { display: block; overflow: hidden; }
 .mline > span { display: block; white-space: nowrap; }
 .projs .navrow { color: var(--mute); }
-.projs .navrow.on { color: var(--accent); }
+.projs .navrow.on { color: var(--text); }
 .projs .navrow:hover { color: var(--accent); }
 .projs:hover .navrow.on:not(:hover) { color: var(--mute); } /* nie zwei Namen gleichzeitig hervorgehoben */
 .colh { margin: 0 0 var(--s40); font-weight: normal; font-size: var(--fs-s); }
@@ -109,9 +111,11 @@ ul { list-style: none; margin: 0; padding: 0; }
 .ov-meta .ov-info { justify-self: end; }
 .ov-list { margin-top: var(--s8); }
 .ov-list li { overflow: hidden; }
-.ov-list button { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ov-list button.on { color: var(--accent); }
-.ov-list:hover button.on:not(:hover) { color: var(--text); }
+/* wie die Artikelliste: grau, aktives Bild schwarz, Hover blau – nie zwei gleichzeitig hervorgehoben */
+.ov-list button { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--mute); }
+.ov-list button.on { color: var(--text); }
+.ov-list button:hover { color: var(--accent); }
+.ov-list:hover button.on:not(:hover) { color: var(--mute); }
 .ov-img { position: absolute; inset: 0; display: grid; place-items: center; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 .ov-img img { pointer-events: none; -webkit-user-drag: none; }
 .ov-img.prev, .ov-img.next { cursor: none; }
@@ -377,16 +381,18 @@ const projects = DATA.projects || [], pages = DATA.pages || {};
 /* =====================================================================
    Texte-Ansicht
    ===================================================================== */
-// PDF-Kachel «Please share» (img/pdf-button.svg): schwarz, beim Hover blau, Weiss = Hintergrundfarbe
-let pdfSvg = "";
-try {
-  pdfSvg = (await (await fetch("img/pdf-button.svg")).text())
-    .replace(/<\?xml[^>]*>/, "")
-    .replace(/#0055FF/gi, "currentColor")
-    .replace(/(<(?:path|rect)\b[^>]*?)fill="white"/g, '$1fill="var(--bg)"') // Maske selbst bleibt weiss
-    .replace(/stroke="white"/g, 'stroke="var(--bg)"')
-    .replace("<svg ", '<svg aria-hidden="true" ');
-} catch {}
+// PDF-Kachel «Please share»: eigene SVGs für Light (img/pdf-button-light.svg) und Dark (img/pdf-button-dark.svg).
+// Die «Tinte» (Light: schwarz, Dark: weiss) wird zu currentColor, damit sie beim Hover blau werden kann.
+async function loadPdfSvg(file, ink) {
+  try {
+    const re = new RegExp(`(<(?:path|rect)\\b[^>]*?)(fill|stroke)="${ink}"`, "g");
+    let svg = (await (await fetch(file)).text()).replace(/<\?xml[^>]*>/, "");
+    while (re.test(svg)) svg = svg.replace(re, '$1$2="currentColor"'); // <mask fill="white"> bleibt unverändert
+    return svg.replace("<svg ", '<svg aria-hidden="true" ');
+  } catch { return ""; }
+}
+const [pdfLight, pdfDark] = await Promise.all([loadPdfSvg("img/pdf-button-light.svg", "black"), loadPdfSvg("img/pdf-button-dark.svg", "white")]);
+const pdfSvg = `<span class="pdf-light">${pdfLight}</span><span class="pdf-dark">${pdfDark}</span>`;
 
 // Auf- und Zuklappen mit Animation (.fold) und drehendem Pfeil
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
