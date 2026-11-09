@@ -7,7 +7,7 @@
 <script>
   // Akzentfarbe wechselt bei jedem Neuladen: Blau → Orange → Grün → Blau …
   (function () {
-    const ACCENTS = [null, "#F14905", "#00E035"]; // null = Blau aus dem CSS
+    const ACCENTS = [null, "#F10505", "#00E362"]; // null = Blau aus dem CSS
     let i = 0;
     try {
       const prev = localStorage.getItem("site-accent"); // erster Besuch: Blau
@@ -29,8 +29,9 @@
   --ok: #1fa25a; --warn: #e08a00;
   /* Abstände: nur diese Werte verwenden (8er-Regel) */
   --s2: 2px; --s4: 4px; --s8: 8px; --s16: 16px; --s24: 24px; --s40: 40px;
+  --edge: var(--s24); /* Abstand zum Bildschirmrand: links, rechts, oben, unten */
   /* Spaltenbreiten (aus der Skizze, 2000 px breit) */
-  --c1: 14vw; --c2: 14.7vw; --c3: 14.1vw; --c4: 40.6vw;
+  --c1: 14vw; --c2: 14.7vw; --c3: 14.1vw; /* Lauftext: restliche Breite bis 24 px vor dem Rand */
   --fs-s: clamp(10.8px, .63vw, 14.4px); --fs-l: clamp(13.5px, .855vw, 19.8px); /* kleine Schrift / Lauftext, ca. 10 % kleiner als vorher */
   --dur: .22s; --ease: cubic-bezier(.3, .7, .2, 1);
   --cur-next: url("img/cursor-next.svg") 12 12, e-resize;
@@ -57,11 +58,12 @@ ul { list-style: none; margin: 0; padding: 0; }
 /* Aufklappen mit kurzer Animation */
 .fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur) var(--ease); }
 .fold.open { grid-template-rows: 1fr; }
+.fold.instant, .instant .tri, [aria-expanded].instant .tri { transition: none; }
 .fold > div { overflow: hidden; min-height: 0; }
 
 /* ---------- Ansicht: Texte ---------- */
-.texte { display: grid; grid-template-columns: var(--c1) var(--c2) var(--c3) var(--c4); column-gap: var(--s40); padding: 0 var(--s40); }
-.fix { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding-top: var(--s40); scrollbar-width: none; }
+.texte { display: grid; grid-template-columns: var(--c1) var(--c2) var(--c3) minmax(0, 1fr); column-gap: var(--s40); padding: 0 var(--edge); }
+.fix { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding-top: var(--edge); scrollbar-width: none; }
 .fix::-webkit-scrollbar { display: none; }
 .fix::after { content: ""; display: block; height: calc(var(--s40) * 3); } /* Platz für die Schalter unten */
 .navrow { display: flex; justify-content: space-between; width: 100%; }
@@ -99,7 +101,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .info .sp { grid-column: 1 / -1; height: var(--s16); }
 .info a:hover { color: var(--accent); }
 
-.text { padding: var(--s40) 0 60vh; font-size: var(--fs-l); line-height: 1.25; }
+.text { padding: var(--edge) 0 60vh; font-size: var(--fs-l); line-height: 1.25; }
 .proj { color: var(--mute); padding-bottom: var(--s40); }
 .proj.on { color: var(--text); }
 .proj header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; margin-bottom: var(--s40); }
@@ -109,10 +111,11 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj h2 { margin: 0; font: inherit; text-align: center; }
 .proj .body p, .proj .body h3 { margin: 0 0 var(--s24); }
 .proj .body h3 { font: inherit; font-weight: bold; }
+.proj .body > :last-child { margin-bottom: 0; }
 .proj.on .body a { color: var(--accent); }
 .proj .body a:hover { text-decoration: underline; }
 
-.switches { position: fixed; left: var(--s40); bottom: var(--s40); display: flex; gap: var(--s40); z-index: 5; }
+.switches { position: fixed; left: var(--edge); bottom: var(--edge); display: flex; gap: var(--s40); z-index: 5; }
 .sw { display: flex; gap: var(--s8); }
 .sw button { color: var(--mute); }
 .sw button.on { color: var(--text); }
@@ -122,7 +125,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 /* ---------- Overlay: Bild / Seiten ---------- */
 .ov { position: fixed; inset: 0; z-index: 10; background: var(--bg); }
-.ov-head { position: absolute; left: var(--s40); top: var(--s40); width: var(--c1); z-index: 2; }
+.ov-head { position: absolute; left: var(--edge); top: var(--edge); width: var(--c1); z-index: 2; }
 .ov-meta { display: grid; grid-template-columns: 1fr 1fr; }
 .ov-meta .ov-info { justify-self: end; }
 .ov-list { margin-top: var(--s8); }
@@ -145,17 +148,17 @@ ul { list-style: none; margin: 0; padding: 0; }
 .cur.down i { transform: scale(.72); }
 .cur.prev.down i { transform: rotate(180deg) scale(.72); }
 .ov-img img { max-width: 40vw; max-height: 62vh; display: block; background: var(--page); }
-.ov-pages { position: absolute; top: 0; bottom: 0; left: calc(var(--s40) * 2 + var(--c1)); right: calc(var(--s40) * 2 + var(--c1)); overflow-y: auto; padding-top: var(--s40); scrollbar-width: none; overscroll-behavior: contain; }
+.ov-pages { position: absolute; top: 0; bottom: 0; left: calc(var(--edge) + var(--c1) + var(--s40)); right: calc(var(--edge) + var(--c1) + var(--s40)); overflow-y: auto; padding-top: var(--edge); scrollbar-width: none; overscroll-behavior: contain; }
 .ov-pages::-webkit-scrollbar { display: none; }
-.ov-pages .pg { height: calc(100vh - var(--s40) * 2); margin-bottom: var(--s40); display: flex; justify-content: center; }
+.ov-pages .pg { height: calc(100vh - var(--edge) * 2); margin-bottom: var(--edge); display: flex; justify-content: center; }
 .ov-pages img { height: 100%; width: 100%; object-fit: contain; object-position: top center; display: block; }
 /* Scroll-Anzeige: der schwarze Balken folgt dem Scrollen stufenlos */
-.ov-ind { position: absolute; right: var(--s40); top: var(--s40); width: 8px; height: 13vh; background: #cfcfcf; cursor: pointer; }
+.ov-ind { position: absolute; right: var(--edge); top: var(--edge); width: 8px; height: 13vh; background: #cfcfcf; cursor: pointer; }
 [data-theme="dark"] .ov-ind { background: var(--line); }
 .ov-ind .thumb { position: absolute; left: 0; top: 0; width: 100%; background: var(--text); will-change: transform; }
 
 /* ---------- Ansicht: Panels (Steuerpult) ---------- */
-.panels { display: grid; grid-template-columns: var(--c1) calc(var(--c2) + var(--s40) + var(--c3)) var(--c4); column-gap: var(--s40); padding: var(--s40); min-height: 100vh; align-items: start; }
+.panels { display: grid; grid-template-columns: var(--c1) calc(var(--c2) + var(--s40) + var(--c3)) minmax(0, 1fr); column-gap: var(--s40); padding: var(--edge); min-height: 100vh; align-items: start; }
 .panels::after { content: ""; grid-column: 1 / -1; height: calc(var(--s40) * 2); } /* Platz für die Schalter unten */
 .panels h2 { font: inherit; margin: 0 0 var(--s16); }
 .panels section + section { margin-top: var(--s40); }
@@ -461,6 +464,14 @@ function revealText(box, startDelay = 0) {
   return anims;
 }
 
+// Offene/geschlossene Dropdowns werden gemerkt und beim Neuladen ohne Animation wiederhergestellt
+function foldRestore(btn, fold, key, def) {
+  const open = ls("fold-" + key, def ? "1" : "0") === "1";
+  fold.classList.add("instant"); btn.classList.add("instant");
+  btn.setAttribute("aria-expanded", open); fold.classList.toggle("open", open); fold.inert = !open;
+  requestAnimationFrame(() => requestAnimationFrame(() => { fold.classList.remove("instant"); btn.classList.remove("instant"); }));
+  btn.addEventListener("click", () => save("fold-" + key, btn.getAttribute("aria-expanded") === "true" ? "1" : "0"));
+}
 function foldToggle(btn, fold, open = btn.getAttribute("aria-expanded") !== "true") {
   btn.setAttribute("aria-expanded", open);
   fold.classList.toggle("open", open);
@@ -490,10 +501,11 @@ for (const key of ["definition", "praevention"]) {
   const fold = el("div", { className: "fold", id }, el("div", {}, inner));
   fold.inert = true;
   if (!inner.childNodes.length) btn.classList.add("muted");
-  else btn.onclick = () => foldToggle(btn, fold);
+  else { btn.onclick = () => foldToggle(btn, fold); foldRestore(btn, fold, key, false); }
   $("#accs").append(btn, fold);
 }
 $("#projToggle").onclick = () => foldToggle($("#projToggle"), $("#projFold"));
+foldRestore($("#projToggle"), $("#projFold"), "artikel", true);
 
 // Projektliste + Textabschnitte
 const sections = [];
