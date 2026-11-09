@@ -109,7 +109,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj .body h3 { font: inherit; font-weight: bold; }
 .proj.on .body a { color: var(--accent); }
 .proj .body a:hover { text-decoration: underline; }
-.proj .w { position: relative; }
+/* Artikel, der gleich eingeblendet wird: Wörter bleiben grau, bis sie an der Reihe sind */
+.proj.on.waiting .body .w { color: var(--mute); }
 
 .switches { position: fixed; left: var(--s40); bottom: var(--s40); display: flex; gap: var(--s40); z-index: 5; }
 .sw { display: flex; gap: var(--s8); }
@@ -507,32 +508,38 @@ function wrapWords(root) {
     n.replaceWith(frag);
   }
 }
-// Wird ein Artikel aktiv, erscheinen seine Wörter nacheinander in der Akzentfarbe
-// und gehen danach langsam in die Textfarbe über. Nur was im Bild ist, wird animiert.
-const WORD = { step: 14, maxSpread: 2200, duration: 1600 };
+// Kommt ein Artikel beim Scrollen nach unten zum ersten Mal ins Bild, färben sich seine Wörter
+// nacheinander: grau → Akzentfarbe → langsam in die Textfarbe. Nur Farbe, keine Bewegung. Jeder Artikel nur einmal.
+const WORD = { step: 45, duration: 1800 };
 let wordTimer = 0, wordSection = null;
-function revealWords(sec) {
+function revealWords(sec, fromBelow) {
   clearTimeout(wordTimer);
-  if (wordSection && wordSection !== sec) wordSection.querySelectorAll(".w").forEach(w => w.getAnimations().forEach(a => a.cancel()));
+  if (wordSection && wordSection !== sec) {
+    wordSection.classList.remove("waiting");
+    wordSection.querySelectorAll(".w").forEach(w => w.getAnimations().forEach(a => a.cancel()));
+  }
   wordSection = sec;
-  if (reduceMotion || !sec) return;
-  // kurz warten, damit beim schnellen Scrollen nicht jeder Artikel kurz aufblitzt
+  if (reduceMotion || !sec || sec.revealed || !fromBelow) return;
+  sec.classList.add("waiting"); // bis die Animation startet, grau lassen statt kurz schwarz aufblitzen
+  // kurz warten, damit beim schnellen Durchscrollen nicht jeder Artikel «verbraucht» wird
   wordTimer = setTimeout(() => {
     if (!sec.classList.contains("on")) return;
-    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-    const words = [...sec.querySelectorAll(".body .w")].filter(w => { const r = w.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; });
-    const step = Math.min(WORD.step, WORD.maxSpread / Math.max(1, words.length));
+    sec.revealed = true;
+    const css = getComputedStyle(document.documentElement);
+    const accent = css.getPropertyValue("--accent").trim(), mute = css.getPropertyValue("--mute").trim();
+    sec.classList.remove("waiting");
+    const words = [...sec.querySelectorAll(".body .w")];
     const colorOf = new Map();
     words.forEach((w, i) => {
       const parent = w.parentElement;
       if (!colorOf.has(parent)) colorOf.set(parent, getComputedStyle(parent).color);
       w.animate([
-        { opacity: 0, top: ".4em", color: accent },
-        { opacity: 1, top: "0", color: accent, offset: .22 },
-        { opacity: 1, top: "0", color: colorOf.get(parent) },
-      ], { duration: WORD.duration, delay: i * step, easing: "cubic-bezier(.3, .7, .2, 1)", fill: "backwards" });
+        { color: mute },
+        { color: accent, offset: .18 },
+        { color: colorOf.get(parent) },
+      ], { duration: WORD.duration, delay: i * WORD.step, easing: "linear", fill: "backwards" });
     });
-  }, 120);
+  }, 140);
 }
 
 // Projektliste + Textabschnitte
@@ -635,10 +642,11 @@ addEventListener("scroll", () => { cancelAnimationFrame(scrollRaf); scrollRaf = 
 addEventListener("resize", onScroll);
 
 function setActiveProject(i) {
+  const prevIdx = activeIdx;
   activeIdx = i;
   const p = projects[i];
   sections.forEach((s, j) => s.classList.toggle("on", j === i));
-  revealWords(sections[i]);
+  revealWords(sections[i], prevIdx >= 0 && i > prevIdx); // beim Laden nicht animieren
   projects.forEach((q, j) => q.navEl.classList.toggle("on", j === i));
   fillColumns(p);
   history.replaceState(null, "", location.pathname + location.search + "#" + p.slug);
