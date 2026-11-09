@@ -54,11 +54,14 @@ ul { list-style: none; margin: 0; padding: 0; }
 .accin p { margin: 0 0 var(--s16); }
 .accin p:last-child { margin-bottom: 0; }
 .accin a:not(.pdf) { color: var(--accent); }
-.pdf { display: block; width: 87px; margin: 0 auto; color: var(--text); transition: transform var(--dur) var(--ease); }
+.pdf { display: block; width: 87px; margin: 0 auto; color: var(--text); transition: transform .8s cubic-bezier(0, .96, 0, 1); }
 .pdf:hover { color: var(--accent); transform: scale(.94); }
 .pdf svg { display: block; width: 100%; height: auto; }
 .accin .text + .pdf, .accin div + .pdf { margin-top: var(--s24); }
 .projs { padding-top: var(--s40); }
+.projs li { overflow: hidden; }
+.mline { display: block; overflow: hidden; }
+.mline > span { display: block; white-space: nowrap; }
 .projs .navrow { color: var(--mute); }
 .projs .navrow.on { color: var(--accent); }
 .projs .navrow:hover { color: var(--accent); }
@@ -108,7 +111,6 @@ ul { list-style: none; margin: 0; padding: 0; }
 .ov-list button { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-list button.on { color: var(--accent); }
 .ov-list:hover button.on:not(:hover) { color: var(--text); }
-.ov-head .dl { display: inline-block; margin-top: var(--s16); color: var(--accent); }
 .ov-img { position: absolute; inset: 0; display: grid; place-items: center; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 .ov-img img { pointer-events: none; -webkit-user-drag: none; }
 .ov-img.prev, .ov-img.next { cursor: none; }
@@ -289,7 +291,6 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
     <button class="close lnk" id="ovClose">Schliessen</button>
     <div class="ov-meta" id="ovMeta"><span id="ovKind"></span><span class="ov-info" id="ovInfo"></span></div>
     <ul class="ov-list" id="ovList"></ul>
-    <a class="dl hidden" id="ovDl" download>PDF herunterladen</a>
   </div>
   <div class="ov-img" id="ovImg"><img alt=""></div>
   <div class="ov-pages" id="ovPages"></div>
@@ -388,14 +389,56 @@ try {
 
 // Auf- und Zuklappen mit Animation (.fold) und drehendem Pfeil
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Eine Animation für alles, was «maskiert» erscheint (Projektinformationen, Listen, Definition)
+const MASK = { duration: 420, easing: "cubic-bezier(.6, 0, .2, 1)" };
+const STAGGER = 30; // ms Versatz pro Zeile
+const maskIn = (node, delay = 0) => node.animate([{ transform: "translateY(100%)" }, { transform: "none" }], { ...MASK, delay, fill: "backwards" });
+
+// Absatz in seine tatsächlichen Zeilen zerlegen (inkl. Silbentrennung), jede Zeile in eine Maske packen.
+// Nach der Animation wird der Originaltext wiederhergestellt, damit er bei anderer Fensterbreite neu umbricht.
+function splitLines(p) {
+  if (p.children.length) return null; // Absätze mit Links o. ä. als Ganzes animieren
+  const node = p.firstChild; if (!node || node.nodeType !== 3) return null;
+  const text = node.data, range = document.createRange(), lines = [];
+  let cur = "", top = null;
+  for (let i = 0; i < text.length; i++) {
+    range.setStart(node, i); range.setEnd(node, i + 1);
+    const rects = range.getClientRects(); if (!rects.length) { cur += text[i]; continue; }
+    const t = Math.round(rects[0].top);
+    if (top !== null && t > top + 2) {
+      // Umbruch mitten im Wort → Trennstrich ergänzen
+      const hyphen = /\S/.test(text[i - 1] || "") && /\S/.test(text[i]) ? "-" : "";
+      lines.push(cur.trimEnd() + hyphen); cur = "";
+    }
+    top = t; cur += text[i];
+  }
+  lines.push(cur.trimEnd());
+  const original = p.innerHTML;
+  p.replaceChildren(...lines.map(l => el("span", { className: "mline" }, el("span", { textContent: l.trimStart() }))));
+  return () => { p.innerHTML = original; };
+}
+function revealText(box, startDelay = 0) {
+  let d = startDelay;
+  const anims = [];
+  for (const p of box.querySelectorAll("p, h3")) {
+    const restore = splitLines(p);
+    if (!restore) { p.classList.add("mline"); anims.push(maskIn(p, d)); d += STAGGER; continue; }
+    const parts = [...p.children].map(line => { const a = maskIn(line.firstChild, d); d += STAGGER; return a; });
+    Promise.all(parts.map(a => a.finished)).then(restore, restore);
+    anims.push(...parts);
+  }
+  return anims;
+}
+
 function foldToggle(btn, fold, open = btn.getAttribute("aria-expanded") !== "true") {
   btn.setAttribute("aria-expanded", open);
   fold.classList.toggle("open", open);
   fold.inert = !open;
-  // Ist der Inhalt eine Liste, erscheinen die Einträge nacheinander
-  if (open && !reduceMotion) fold.querySelectorAll("li").forEach((li, i) => li.animate(
-    [{ opacity: 0, transform: "translateY(-4px)" }, { opacity: 1, transform: "none" }],
-    { duration: 260, delay: 40 + i * 28, easing: "cubic-bezier(.3,.7,.2,1)", fill: "backwards" }));
+  if (!open || reduceMotion) return;
+  // Listen: Einträge nacheinander aus der Maske; Texte: Zeile für Zeile
+  const items = fold.querySelectorAll("li");
+  if (items.length) items.forEach((li, i) => li.firstChild && maskIn(li.firstChild, i * STAGGER));
+  else revealText(fold);
 }
 
 // Definition und Prävention: Text aus text.md, darunter die «Please share»-Kachel,
@@ -479,12 +522,17 @@ function setInfo(k, v) {
   const span = el("span");
   if (typeof v === "object" && v) span.append(el("a", { href: v.href, target: "_blank", rel: "noopener", textContent: v.text }));
   else span.textContent = v || "–";
-  const old = [...dd.children];
+  // Was schon hinausgleitet, sofort entfernen; der aktuell sichtbare Wert gleitet von seiner jetzigen Position weg
+  dd.querySelectorAll("span.leaving").forEach(o => o.remove());
+  const old = dd.lastElementChild;
   dd.append(span);
-  if (!old.length || reduceMotion) { old.forEach(o => o.remove()); return; }
-  const opt = { duration: 420, easing: "cubic-bezier(.6,0,.2,1)" };
-  span.animate([{ transform: "translateY(100%)" }, { transform: "none" }], opt);
-  old.forEach(o => o.animate([{ transform: "none" }, { transform: "translateY(-100%)" }], { ...opt, fill: "forwards" }).onfinish = () => o.remove());
+  if (!old || reduceMotion) { if (old) old.remove(); return; }
+  const from = getComputedStyle(old).transform;
+  old.getAnimations().forEach(a => a.cancel());
+  old.classList.add("leaving");
+  old.animate([{ transform: from === "none" ? "none" : from }, { transform: "translateY(-100%)" }], { ...MASK, fill: "forwards" })
+    .finished.then(() => old.remove(), () => {});
+  maskIn(span);
 }
 
 // Welcher Abschnitt ist aktiv? Der, dessen Anfang zuletzt über 40 % der Fensterhöhe gescrollt ist.
@@ -546,7 +594,6 @@ function openImage(p, i) {
   const b = p.bilder[i];
   const fresh = !ovOpen || ovOpen.type !== "img" || ovOpen.project !== p;
   ovOpen = { type: "img", project: p, i };
-  $("#ovDl").classList.add("hidden");
   if (fresh) {
     $("#ovList").replaceChildren(...p.bilder.map((x, j) =>
       el("li", {}, el("button", { textContent: x.name, title: x.name, onclick: () => openImage(p, j) }))));
@@ -585,7 +632,6 @@ function openPages(key) {
   ovOpen = { type: "pages", key };
   $("#ovKind").textContent = pg.titel;
   $("#ovList").replaceChildren();
-  $("#ovDl").classList.toggle("hidden", !pg.pdf); if (pg.pdf) $("#ovDl").href = pg.pdf;
   const box = $("#ovPages"); box.replaceChildren();
   const ind = $("#ovInd"); ind.replaceChildren(el("div", { className: "thumb" }));
   pg.seiten.forEach((src, i) => {
