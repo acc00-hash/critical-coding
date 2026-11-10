@@ -4,12 +4,6 @@ titel: Jewish Creatives Threatened
 autorin: Nino Bucci
 datum: 2024
 quelle: https://www.theguardian.com/media/article/2024/aug/22/new-york-times-reporter-natasha-frost-jewish-whatsapp-chat-leak-suing-ntwnfb?utm_source=chatgpt.com
-led:
-  wand: turm.gif
-  e1: punkte.gif
-  e2: punkte.gif
-  e3: punkte.gif
-  e4: punkte.gif
 ---
 
 Jewish creatives allegedly threatened after WhatsApp doxing consider suing New York Times. Jeremy Leibler says ‘all legal avenues are being explored’ after Melbourne-based New York Times reporter shared group chat with another person that was subsequently disseminated by others and posted online by activists.

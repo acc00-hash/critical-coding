@@ -4,12 +4,6 @@ titel: Vorwürfe an US-Elite-Uni
 autorin: SRF Redaktion
 datum: 2026
 quelle: https://www.srf.ch/news/international/vorwuerfe-an-us-elite-uni-die-cornell-7-am-pranger-das-internet-wird-zum-gerichtssaal
-led:
-  wand: turm.gif
-  e1: punkte.gif
-  e2: punkte.gif
-  e3: punkte.gif
-  e4: punkte.gif
 ---
 
 Die «Cornell 7» am Pranger: Das Internet wird zum Gerichtssaal. Sieben Männer sollen eine Frau vergewaltigt haben. Im Internet wird bereits geurteilt – obwohl noch ermittelt wird.

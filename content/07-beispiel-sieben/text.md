@@ -4,12 +4,6 @@ titel: Justices’ Home Addresses
 autorin: DOUGLAS BLAIR
 datum: 2022
 quelle: https://www.dailysignal.com/2022/06/28/after-daily-signal-report-instagram-removes-post-containing-justices-home-addresses/?utm_source=chatgpt.com
-led:
-  wand: turm.gif
-  e1: punkte.gif
-  e2: punkte.gif
-  e3: punkte.gif
-  e4: punkte.gif
 ---
 
 After Daily Signal Report, Instagram Removes Post Containing Justices’ Home Addresses. The Daily Signal reported on Sunday that the popular social media sites Instagram and Reddit hosted posts listing the home addresses of Supreme Court justices and urging activists to protest at their residences.   

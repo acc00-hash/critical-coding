@@ -4,12 +4,6 @@ titel: JUICYJAM
 autorin: Alberto Fittarelli, Katekanok Wongsapakdee, M. Scott
 datum: 2025
 quelle: https://citizenlab.ca/research/how-thai-authorities-use-online-doxxing-to-suppress-dissent/?utm_source=chatgpt.com
-led:
-  wand: turm.gif
-  e1: punkte.gif
-  e2: punkte.gif
-  e3: punkte.gif
-  e4: punkte.gif
 ---
 
 How Thai Authorities Use Online Doxxing to Suppress Dissent. A sustained, coordinated social media harassment and doxxing campaign – which we codenamed JUICYJAM – targeting the pro-democracy movement in Thailand has run uninterrupted, and unchallenged, since at least August 2020. Through our analysis of public social media posts we determined that the campaign was not only inauthentic, but the information revealed could not have been reasonably sourced from a private individual.

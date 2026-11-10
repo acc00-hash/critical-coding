@@ -4,12 +4,6 @@ titel: Party bei Jana
 autorin: Alex Baur, Michael Trammer, Alina Schulz, SWR 
 datum: 2024
 quelle: https://www.tagesschau.de/inland/gesellschaft/doxing-internet-datenschutz-100.html
-led:
-  wand: turm.gif
-  e1: punkte.gif
-  e2: punkte.gif
-  e3: punkte.gif
-  e4: punkte.gif
 ---
 
 "Doxing" heißt die perfide Masche, andere im Netz bloßzustellen: durch die Veröffentlichung privater Daten und gefakter Informationen. Oft trifft es Frauen. Polizei und Strafverfolgung sind überfordert, zeigen Recherchen des Y-Kollektiv.

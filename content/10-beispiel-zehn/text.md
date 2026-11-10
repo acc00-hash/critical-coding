@@ -4,12 +4,6 @@ titel: Hackerangriff auf den KKK
 autorin: Maxie Römhild
 datum: 2021
 quelle: https://taz.de/Hackerangriff-auf-den-KKK/!5749814/
-led:
-  wand: turm.gif
-  e1: punkte.gif
-  e2: punkte.gif
-  e3: punkte.gif
-  e4: punkte.gif
 ---
 
 Ein antifaschistisches, jüdisches Kollektiv hat zwei Gruppen des Ku Klux Klans gehackt. Und dann die Mitgliederdaten veröffentlicht. Wer Ende Januar die Homepage der „Patriotic Brigade Knights of the Ku Klux Klan“ besuchen wollte, dem schallte zunächst ein herzliches „!!!Shabbat Shalom!!!“ und „Good Night White Pride;)“ in Bannerform entgegen. Verantwortlich ist ein jüdisch-israelisches, antifaschistisches Kollektiv, das sich Hayalim Almonim (hebräisch für „Anonyme Soldaten“) nennt. Die Hackergruppe hat nicht nur die Website der Neonazi-Gruppe aus Texas gekapert, sondern auch Namen, Fotos, Adressen und andere persönliche Informationen der Mitglieder veröffentlicht.

@@ -4,12 +4,6 @@ titel: Affäre aufgedeckt?
 autorin: Celina Euchner
 datum: 2025
 quelle: https://www.tagesanzeiger.ch/bei-coldplay-konzert-hat-astronomer-ceo-eine-liebesaffaere-548923379032
-led:
-  wand: turm.gif
-  e1: punkte.gif
-  e2: punkte.gif
-  e3: punkte.gif
-  e4: punkte.gif
 ---
 
 Ein viraler Clip vom Coldplay-Konzert bringt Tech-CEO und Angestellte in Erklärungsnot. Eine Kiss-Cam fing zwei Arbeitskollegen bei einem intimen Augenblick ein. Coldplay-Sänger Chris Martin witzelte über eine mögliche Affäre, jetzt verbreitet sich das Video weltweit. Bei einem Coldplay-Konzert in Boston am Mittwochabend schwenkt die Kamera ins Publikum. Auf der grossen Leinwand zu sehen sind Andy Byron, Chef des New Yorker Softwareunternehmens Astronomer, und seine Kollegin Kristin Cabot, HR-Chefin der Firma. Beide wirken vertraut, umarmen sich.

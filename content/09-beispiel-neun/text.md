@@ -4,12 +4,6 @@ titel: Passwort: blau
 autorin: Martín Steinhagen, Sascha Venohr
 datum: 2026
 quelle: https://www.zeit.de/politik/deutschland/2026-10/afd-leak-email-hackerangriff-waehlerdaten-privat
-led:
-  wand: turm.gif
-  e1: punkte.gif
-  e2: punkte.gif
-  e3: punkte.gif
-  e4: punkte.gif
 ---
 
 Das AfD-Leak enthält nach Recherchen der ZEIT auch Namen und Adressen von mehr als 23.000 Erstwählern, darunter Jugendliche. Wie sind sie dort gelandet?
