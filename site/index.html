@@ -35,7 +35,7 @@
   --gutter: var(--s24);
   --col: calc((100vw - var(--edge) * 2 - var(--gutter) * 5) / 6);
   --c1: var(--col); --c2: var(--col); --c3: var(--col);
-  --text-w: calc(var(--col) * 2.5 + var(--gutter) * 2); /* Lauftext: ab Spalte 4, bis Mitte Spalte 6 */
+  --text-w: calc(var(--col) * 2.5 + var(--gutter) * 2 - 50px); /* Lauftext: ab Spalte 4, bis kurz vor Mitte Spalte 6 */
   --fs-s: clamp(10.8px, .63vw, 14.4px); --fs-l: clamp(13.5px, .855vw, 19.8px); /* kleine Schrift / Lauftext, ca. 10 % kleiner als vorher */
   --dur: .22s; --ease: cubic-bezier(.3, .7, .2, 1);
   --cur-next: url("img/cursor-next.svg") 12 12, e-resize;
@@ -105,7 +105,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .info .sp { grid-column: 1 / -1; height: var(--s16); }
 .info a:hover { color: var(--accent); }
 
-.text { width: 100%; max-width: var(--text-w); padding: var(--edge) 0 60vh; font-size: var(--fs-l); line-height: 1.25; }
+.text { width: 100%; max-width: var(--text-w); padding: var(--edge) 0; font-size: var(--fs-l); line-height: 1.25; }
 .proj { color: var(--mute); padding-bottom: var(--s40); }
 .proj.on { color: var(--text); }
 .proj header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; margin-bottom: var(--s40); }
@@ -116,11 +116,20 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj .body p, .proj .body h3 { margin: 0 0 var(--s24); }
 .proj .body h3 { font: inherit; font-weight: bold; }
 .proj .body > :last-child { margin-bottom: 0; }
+/* Absatz im Fokus: Rahmen wie die Nummernboxen (1 px), ohne die Zeilen zu verschieben */
+.proj.on .body .focus { outline: 1px solid var(--line); outline-offset: var(--s8); }
 .proj.on .body a { color: var(--accent); }
 .proj .body a:hover { text-decoration: underline; }
 
 /* Seitenübersicht oben rechts: gestrichelt = ganze Seite, Fläche = sichtbarer Bildschirm */
-.minimap { position: fixed; top: var(--edge); right: var(--edge); width: 56px; z-index: 5; border: 1px dashed var(--text); background: var(--bg); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.minimap { position: fixed; top: var(--edge); right: var(--edge); width: 56px; z-index: 5; background: var(--bg); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+/* gestrichelter Rahmen 4 px Strich / 4 px Lücke */
+.minimap::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(to right, var(--text) 50%, transparent 0) top / 8px 1px repeat-x,
+    linear-gradient(to right, var(--text) 50%, transparent 0) bottom / 8px 1px repeat-x,
+    linear-gradient(to bottom, var(--text) 50%, transparent 0) left / 1px 8px repeat-y,
+    linear-gradient(to bottom, var(--text) 50%, transparent 0) right / 1px 8px repeat-y; }
 .minimap .view { position: absolute; left: 0; right: 0; top: 0; background: var(--text); will-change: transform; }
 .minimap .pct { position: absolute; left: 0; right: 0; text-align: center; font-size: var(--fs-s); line-height: 1; font-variant-numeric: tabular-nums;
   color: #fff; mix-blend-mode: difference; pointer-events: none; } /* über der Fläche automatisch invertiert */
@@ -140,6 +149,8 @@ body[data-view="panels"] .minimap { display: none; }
 .ov-meta .ov-info { justify-self: end; }
 .ov-list { margin-top: var(--s8); }
 .ov-list li { overflow: hidden; }
+.ov-list li.gstart:not(:first-child) { margin-top: var(--s8); } /* Gruppen je Artikel */
+.ov-title { position: absolute; top: var(--edge); left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap; }
 /* wie die Artikelliste: grau, aktives Bild schwarz, Hover blau – nie zwei gleichzeitig hervorgehoben */
 .ov-list button { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--mute); }
 .ov-list button.on { color: var(--text); }
@@ -327,6 +338,7 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
     <div class="ov-meta" id="ovMeta"><span id="ovKind"></span><span class="ov-info" id="ovInfo"></span></div>
     <ul class="ov-list" id="ovList"></ul>
   </div>
+  <div class="ov-title" id="ovTitle"></div>
   <div class="ov-img" id="ovImg"><img alt=""></div>
   <div class="ov-pages" id="ovPages"></div>
   <div class="ov-ind" id="ovInd"></div>
@@ -608,15 +620,35 @@ function setInfo(k, v, instant) {
 
 // Welcher Abschnitt ist aktiv? Der, dessen Anfang zuletzt über 40 % der Fensterhöhe gescrollt ist.
 let activeIdx = -1;
+// Welches Element ist «dran»? Für jedes Element wird die Scrollposition berechnet, ab der es aktiv ist:
+// sein Anfang hat die Linie bei 40 % der Fensterhöhe erreicht (ganz oben näher am Rand, damit auch
+// ein kurzer erster Text drankommt). Elemente, die am Seitenende die Linie nie erreichen,
+// werden gleichmässig auf den letzten Scrollweg verteilt – so kommt jedes einmal dran.
+function pickIndex(els) {
+  if (!els.length) return -1;
+  const y = scrollY, L = innerHeight * 0.4, maxS = document.documentElement.scrollHeight - innerHeight;
+  const need = els.map(e => { const A = e.getBoundingClientRect().top + y; return Math.max(A - L, (A - 60) / 2); });
+  const k = need.findIndex(v => v > maxS - 1);
+  if (k > 0 && maxS > 0) {
+    const n = els.length, from = Math.max(need[k - 1] + 1, maxS - innerHeight * 0.5, 0);
+    for (let j = k; j < n; j++) need[j] = from + (j - k + 1) * (maxS - from) / (n - k) - 1;
+  }
+  let idx = 0;
+  need.forEach((v, i) => { if (y >= v) idx = i; });
+  return idx;
+}
 function onScroll() {
   if (view !== "texte" || !sections.length || ovOpen) return;
-  // Linie bei 40 % der Fensterhöhe; ganz oben näher am Rand, damit auch ein kurzer erster Text aktiv werden kann
-  const line = Math.min(innerHeight * 0.4, 60 + scrollY);
-  let idx = 0;
-  sections.forEach((s, i) => { if (s.getBoundingClientRect().top <= line) idx = i; });
-  // ganz unten angekommen: letzter Abschnitt
-  if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) idx = sections.length - 1;
+  const idx = pickIndex(sections);
   if (idx !== activeIdx) setActiveProject(idx);
+  // Absatz im Fokus innerhalb des aktiven Artikels
+  const paras = [...sections[idx].querySelectorAll(".body > p, .body > h3")];
+  const pi = pickIndex(paras);
+  if (sections[idx].focusP !== paras[pi]) {
+    document.querySelectorAll(".proj .body .focus").forEach(e => e.classList.remove("focus"));
+    if (paras[pi]) paras[pi].classList.add("focus");
+    sections[idx].focusP = paras[pi];
+  }
 }
 let scrollRaf = 0;
 addEventListener("scroll", () => { cancelAnimationFrame(scrollRaf); scrollRaf = requestAnimationFrame(onScroll); }, { passive: true });
@@ -678,6 +710,7 @@ function openOv(type) {
   ov.classList.remove("hidden", "img", "pages"); ov.classList.add(type);
   $("#ovImg").classList.toggle("hidden", type !== "img");
   $("#ovMeta").classList.toggle("hidden", type !== "pages");
+  $("#ovTitle").classList.toggle("hidden", type !== "img");
   $("#ovList").classList.toggle("hidden", type !== "img");
   $("#ovPages").classList.toggle("hidden", type !== "pages");
   $("#ovInd").classList.toggle("hidden", type !== "pages");
@@ -696,23 +729,29 @@ function closeOv() {
 }
 $("#ovClose").onclick = closeOv;
 
-function openImage(p, i) {
-  const n = p.bilder.length; if (!n) return;
-  i = (i + n) % n;
-  const b = p.bilder[i];
-  const fresh = !ovOpen || ovOpen.type !== "img" || ovOpen.project !== p;
-  ovOpen = { type: "img", project: p, i };
+// Alle Bilder aller Artikel in einer Reihe; Liste links nach Artikel gruppiert
+const allImages = [];
+projects.forEach(p => p.bilder.forEach((b, i) => allImages.push({ p, i, b, first: i === 0 })));
+function openImage(p, i) { openImageAt(allImages.findIndex(x => x.p === p && x.i === i)); }
+function openImageAt(g) {
+  const n = allImages.length; if (!n || g < -n) return;
+  g = ((g % n) + n) % n; // über die Artikelgrenzen hinweg, am Ende wieder von vorn
+  const cur = allImages[g];
+  const fresh = !ovOpen || ovOpen.type !== "img";
+  ovOpen = { type: "img", project: cur.p, i: cur.i, g };
   if (fresh) {
-    $("#ovList").replaceChildren(...p.bilder.map((x, j) =>
-      el("li", {}, el("button", { textContent: x.name, title: x.name, onclick: () => openImage(p, j) }))));
+    $("#ovList").replaceChildren(...allImages.map(x =>
+      el("li", { className: x.first ? "gstart" : "" }, el("button", { textContent: x.b.name, title: x.p.titel + " – " + x.b.name, onclick: () => openImage(x.p, x.i) }))));
   }
-  [...$("#ovList").children].forEach((li, j) => li.firstChild.classList.toggle("on", j === i));
+  [...$("#ovList").children].forEach((li, j) => li.firstChild.classList.toggle("on", j === g));
+  $("#ovTitle").textContent = cur.p.titel;
   const img = $("#ovImg img");
-  img.src = b.url; img.alt = b.name;
+  img.src = cur.b.url; img.alt = cur.b.name;
   if (fresh) {
     openOv("img");
     if (!reduceMotion) {
-      [...$("#ovList").children].forEach((li, j) => maskIn(li.firstChild, j * STAGGER));
+      const step = Math.min(STAGGER, 600 / n);
+      [...$("#ovList").children].forEach((li, j) => maskIn(li.firstChild, j * step));
       img.style.opacity = 0;
       img.decode().catch(() => {}).then(() => {
         img.style.opacity = "";
@@ -726,7 +765,7 @@ function openImage(p, i) {
 let lastX = innerWidth, lastY = innerHeight / 2, overImg = false;
 const cur = $("#cur");
 function setCursor(x) {
-  const multi = ovOpen && ovOpen.type === "img" && ovOpen.project.bilder.length > 1;
+  const multi = ovOpen && ovOpen.type === "img" && allImages.length > 1;
   const prev = multi && x < innerWidth / 2;
   $("#ovImg").classList.toggle("prev", prev);
   $("#ovImg").classList.toggle("next", multi && !prev);
@@ -743,7 +782,7 @@ $("#ovImg").addEventListener("pointerdown", e => { cur.classList.add("down"); e.
 addEventListener("pointerup", () => cur.classList.remove("down"));
 $("#ovImg").onclick = e => {
   if (!ovOpen || ovOpen.type !== "img") return;
-  openImage(ovOpen.project, ovOpen.i + (e.clientX < innerWidth / 2 ? -1 : 1));
+  openImageAt(ovOpen.g + (e.clientX < innerWidth / 2 ? -1 : 1));
 };
 
 function openPages(key) {
@@ -792,8 +831,7 @@ addEventListener("keydown", e => {
   if (!ovOpen) return;
   if (e.key === "Escape") return closeOv();
   if (ovOpen.type === "img" && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
-    const { project: p, i } = ovOpen, n = p.bilder.length;
-    openImage(p, i + (e.key === "ArrowRight" ? 1 : -1));
+    openImageAt(ovOpen.g + (e.key === "ArrowRight" ? 1 : -1));
   }
 });
 
