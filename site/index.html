@@ -119,6 +119,12 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj.on .body a { color: var(--accent); }
 .proj .body a:hover { text-decoration: underline; }
 
+/* Seitenübersicht oben rechts: gestrichelt = ganze Seite, Fläche = sichtbarer Bildschirm */
+.minimap { position: fixed; top: var(--edge); right: var(--edge); width: 56px; z-index: 5; border: 1px dashed var(--text); background: var(--bg); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.minimap .view { position: absolute; left: 0; right: 0; top: 0; background: var(--text); will-change: transform; }
+.minimap .pct { position: absolute; left: 0; right: 0; text-align: center; font-size: var(--fs-s); line-height: 1; font-variant-numeric: tabular-nums;
+  color: #fff; mix-blend-mode: difference; pointer-events: none; } /* über der Fläche automatisch invertiert */
+body[data-view="panels"] .minimap { display: none; }
 .switches { position: fixed; left: var(--edge); bottom: var(--edge); display: flex; gap: var(--s40); z-index: 5; }
 .sw { display: flex; gap: var(--s8); }
 .sw button { color: var(--mute); }
@@ -219,6 +225,7 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
 
 /* ---------- Schmale Bildschirme ---------- */
 @media (max-width: 900px) {
+  .minimap { display: none; }
   :root { --fs-s: 12px; --fs-l: 15.5px; }
   .texte { grid-template-columns: 1fr; padding: 0 var(--s16); }
   .fix { position: static; height: auto; padding-top: var(--s24); }
@@ -327,6 +334,11 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
 
 <div class="cur" id="cur" aria-hidden="true"><i></i></div>
 
+<div class="minimap" id="minimap" role="scrollbar" aria-orientation="vertical" aria-controls="text" aria-label="Position auf der Seite">
+  <div class="view" id="mmView"></div>
+  <span class="pct" id="mmDone"></span><span class="pct" id="mmLeft"></span>
+</div>
+
 <div class="switches">
   <span class="sw" id="swView"><button data-v="texte">Texte</button><button data-v="panels">Panels<span class="dot hidden" id="ledDot"></span></button></span>
   <span class="sw" id="swTheme"><button data-t="light">Light</button><button data-t="dark">Dark</button></span>
@@ -380,6 +392,7 @@ $("#swTheme").onclick = e => { const t = e.target.closest("button")?.dataset.t; 
 
 let view = "texte", texteScroll = 0;
 function setView(v) {
+  requestAnimationFrame(() => typeof updateMinimap === "function" && updateMinimap());
   if (v === view && document.body.dataset.view) return;
   if (view === "texte") texteScroll = scrollY;
   view = v; document.body.dataset.view = v; save("site-view", v);
@@ -607,6 +620,43 @@ function onScroll() {
 }
 let scrollRaf = 0;
 addEventListener("scroll", () => { cancelAnimationFrame(scrollRaf); scrollRaf = requestAnimationFrame(onScroll); }, { passive: true });
+
+// ---- Seitenübersicht oben rechts ----
+// Höhe des Kastens = Seitenlänge im Verhältnis zur Breite (max. 60 % der Fensterhöhe),
+// helle Fläche = Bildschirm, Zahlen = Prozent schon gescrollt (oben) / noch übrig (unten)
+const mm = $("#minimap"), mmView = $("#mmView"), mmDone = $("#mmDone"), mmLeft = $("#mmLeft");
+function updateMinimap() {
+  if (view !== "texte") return;
+  const doc = document.documentElement, total = doc.scrollHeight, vh = innerHeight;
+  const w = mm.clientWidth, h = Math.min(w * total / innerWidth, innerHeight * 0.6);
+  mm.style.height = h + 2 + "px";
+  const viewH = Math.max(4, h * vh / total), top = (h - viewH) * (scrollY / Math.max(1, total - vh));
+  mmView.style.height = viewH + "px";
+  mmView.style.transform = `translateY(${top}px)`;
+  const done = Math.round(100 * scrollY / Math.max(1, total - vh));
+  mmDone.textContent = done; mmLeft.textContent = 100 - done;
+  mm.setAttribute("aria-valuenow", done);
+  // Zahlen mittig in den freien Bereich über bzw. unter der Fläche setzen
+  const lh = mmDone.offsetHeight || 12;
+  mmDone.style.top = Math.max(4, top / 2 - lh / 2) + "px";
+  mmLeft.style.top = Math.min(h - lh - 4, top + viewH + (h - top - viewH) / 2 - lh / 2) + "px";
+}
+addEventListener("scroll", () => requestAnimationFrame(updateMinimap), { passive: true });
+addEventListener("resize", updateMinimap);
+new ResizeObserver(updateMinimap).observe(document.body);
+// Klicken oder Ziehen im Kasten scrollt an die Stelle
+function mmJump(e, smooth) {
+  const r = mm.getBoundingClientRect(), doc = document.documentElement;
+  const viewH = mmView.offsetHeight;
+  const prog = Math.max(0, Math.min(1, (e.clientY - r.top - viewH / 2) / Math.max(1, r.height - viewH)));
+  scrollTo({ top: prog * (doc.scrollHeight - innerHeight), behavior: smooth ? "smooth" : "auto" });
+}
+mm.addEventListener("pointerdown", e => {
+  mmJump(e, true); mm.setPointerCapture(e.pointerId);
+  const move = ev => mmJump(ev, false);
+  mm.addEventListener("pointermove", move);
+  mm.addEventListener("pointerup", () => mm.removeEventListener("pointermove", move), { once: true });
+});
 addEventListener("resize", onScroll);
 
 function setActiveProject(i) {
