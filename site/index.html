@@ -25,7 +25,7 @@
 @font-face { font-family: "Antique Legacy"; src: url("font/AntiqueLegacy-Regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
 :root {
   --font: "Antique Legacy", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --bg: #fff; --text: #000; --mute: #b5b5b5; --line: #d4d4d4; --page: #efefef; --accent: #0055FF; --accent-ink: #fff; /* Tinte auf Akzentfläche (PDF-Hover) */
+  --bg: #fff; --text: #000; --mute: #b5b5b5; --line: #d4d4d4; --page: #efefef; --track: #f2f2f2; --accent: #0055FF; --accent-ink: #fff; /* Tinte auf Akzentfläche (PDF-Hover) */
   --ok: #1fa25a; --warn: #e08a00;
   /* Abstände: nur diese Werte verwenden (8er-Regel) */
   --s2: 2px; --s4: 4px; --s8: 8px; --s16: 16px; --s24: 24px; --s40: 40px;
@@ -41,7 +41,7 @@
   --cur-next: url("img/cursor-next.svg") 12 12, e-resize;
   --cur-prev: url("img/cursor-prev.svg") 12 12, w-resize;
 }
-[data-theme="dark"] { --bg: #000000; --text: #E5E5E5; --mute: #575757; --line: #2b2b2b; --page: #1b1b1b; --accent: #0055FF; --accent-ink: #E5E5E5;
+[data-theme="dark"] { --bg: #000000; --text: #E5E5E5; --mute: #575757; --line: #2b2b2b; --page: #1b1b1b; --track: #121212; --accent: #0055FF; --accent-ink: #E5E5E5;
   --cur-next: url("img/cursor-next-dark.svg") 12 12, e-resize; --cur-prev: url("img/cursor-prev-dark.svg") 12 12, w-resize; }
 * { box-sizing: border-box; }
 html { color-scheme: light; }
@@ -121,18 +121,10 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj.on .body a { color: var(--accent); }
 .proj .body a:hover { text-decoration: underline; }
 
-/* Seitenübersicht oben rechts: gestrichelt = ganze Seite, Fläche = sichtbarer Bildschirm */
-.minimap { position: fixed; top: var(--edge); right: var(--edge); width: 56px; z-index: 5; background: var(--bg); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
-/* gestrichelter Rahmen 4 px Strich / 4 px Lücke */
-.minimap::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background:
-    linear-gradient(to right, var(--text) 50%, transparent 0) top / 8px 1px repeat-x,
-    linear-gradient(to right, var(--text) 50%, transparent 0) bottom / 8px 1px repeat-x,
-    linear-gradient(to bottom, var(--text) 50%, transparent 0) left / 1px 8px repeat-y,
-    linear-gradient(to bottom, var(--text) 50%, transparent 0) right / 1px 8px repeat-y; }
-.minimap .view { position: absolute; left: 0; right: 0; top: 0; background: var(--text); will-change: transform; }
-.minimap .pct { position: absolute; left: 0; right: 0; text-align: center; font-size: var(--fs-s); line-height: 1; font-variant-numeric: tabular-nums;
-  color: #fff; mix-blend-mode: difference; pointer-events: none; } /* über der Fläche automatisch invertiert */
+/* Seitenübersicht oben rechts: Fläche = ganze Seite, Linie = aktuelle Position */
+.minimap { position: fixed; top: var(--edge); right: var(--edge); width: 48px; z-index: 5; background: var(--track); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.minimap .view { position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--text); will-change: transform; }
+.minimap .pct { position: absolute; left: 0; right: 0; text-align: center; font-size: var(--fs-s); line-height: 1; font-variant-numeric: tabular-nums; pointer-events: none; }
 body[data-view="panels"] .minimap { display: none; }
 .switches { position: fixed; left: var(--edge); bottom: var(--edge); display: flex; gap: var(--s40); z-index: 5; }
 .sw { display: flex; gap: var(--s8); }
@@ -660,18 +652,21 @@ const mm = $("#minimap"), mmView = $("#mmView"), mmDone = $("#mmDone"), mmLeft =
 function updateMinimap() {
   if (view !== "texte") return;
   const doc = document.documentElement, total = doc.scrollHeight, vh = innerHeight;
-  const w = mm.clientWidth, h = Math.min(w * total / innerWidth, innerHeight * 0.6);
-  mm.style.height = h + 2 + "px";
-  const viewH = Math.max(4, h * vh / total), top = (h - viewH) * (scrollY / Math.max(1, total - vh));
-  mmView.style.height = viewH + "px";
-  mmView.style.transform = `translateY(${top}px)`;
-  const done = Math.round(100 * scrollY / Math.max(1, total - vh));
+  // Höhe proportional zur Seitenlänge; mindestens 120 px, damit beide Zahlen Platz haben
+  const w = mm.clientWidth, h = Math.max(120, Math.min(w * total / innerWidth, innerHeight * 0.6));
+  mm.style.height = h + "px";
+  const prog = Math.max(0, Math.min(1, scrollY / Math.max(1, total - vh)));
+  const y = Math.round(prog * (h - 1));
+  mmView.style.transform = `translateY(${y}px)`;
+  const done = Math.round(100 * prog);
   mmDone.textContent = done; mmLeft.textContent = 100 - done;
   mm.setAttribute("aria-valuenow", done);
-  // Zahlen mittig in den freien Bereich über bzw. unter der Fläche setzen
-  const lh = mmDone.offsetHeight || 12;
-  mmDone.style.top = Math.max(4, top / 2 - lh / 2) + "px";
-  mmLeft.style.top = Math.min(h - lh - 4, top + viewH + (h - top - viewH) / 2 - lh / 2) + "px";
+  // Zahlen mittig über bzw. unter der Linie; bei wenig Platz an den Rand gedrückt
+  const lh = mmDone.offsetHeight || 12, pad = 8;
+  mmDone.style.top = Math.max(pad, Math.min(y - lh - 4, y / 2 - lh / 2)) + "px";
+  mmLeft.style.top = Math.min(h - lh - pad, Math.max(y + 5, y + (h - y) / 2 - lh / 2)) + "px";
+  mmDone.style.visibility = y < lh + pad + 4 ? "hidden" : "";
+  mmLeft.style.visibility = h - y < lh + pad + 4 ? "hidden" : "";
 }
 addEventListener("scroll", () => requestAnimationFrame(updateMinimap), { passive: true });
 addEventListener("resize", updateMinimap);
@@ -679,8 +674,7 @@ new ResizeObserver(updateMinimap).observe(document.body);
 // Klicken oder Ziehen im Kasten scrollt an die Stelle
 function mmJump(e, smooth) {
   const r = mm.getBoundingClientRect(), doc = document.documentElement;
-  const viewH = mmView.offsetHeight;
-  const prog = Math.max(0, Math.min(1, (e.clientY - r.top - viewH / 2) / Math.max(1, r.height - viewH)));
+  const prog = Math.max(0, Math.min(1, (e.clientY - r.top) / Math.max(1, r.height)));
   scrollTo({ top: prog * (doc.scrollHeight - innerHeight), behavior: smooth ? "smooth" : "auto" });
 }
 mm.addEventListener("pointerdown", e => {
