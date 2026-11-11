@@ -66,8 +66,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 .accin p { margin: 0 0 var(--s16); }
 .accin p:last-child { margin-bottom: 0; }
 .accin a:not(.pdf) { color: var(--c-link); }
-.pdf { display: block; width: 87px; margin: 0 auto; --pdf-ink: var(--text); --pdf-paper: var(--bg); transition: opacity .2s; }
-.pdf:hover { opacity: .8; }
+.pdf { display: block; width: 87px; margin: 0 auto; --pdf-ink: var(--text); --pdf-paper: var(--bg); transition: opacity .2s, transform .8s cubic-bezier(0, .96, 0, 1); }
+.pdf:hover { opacity: .8; transform: scale(.94); }
 .pdf svg { display: block; width: 100%; height: auto; }
 .pdf img { display: block; width: 100%; height: auto; }
 .accin .text + .pdf, .accin div + .pdf { margin-top: var(--s24); }
