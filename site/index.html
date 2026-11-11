@@ -69,8 +69,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .pdf { display: block; width: 87px; margin: 0 auto; --pdf-ink: var(--text); --pdf-paper: var(--bg); transition: opacity .2s; }
 .pdf:hover { opacity: .8; }
 .pdf svg { display: block; width: 100%; height: auto; }
-.pdf .pdf-dark, [data-theme="dark"] .pdf .pdf-light { display: none; }
-[data-theme="dark"] .pdf .pdf-dark { display: block; }
+.pdf img { display: block; width: 100%; height: auto; }
 .accin .text + .pdf, .accin div + .pdf { margin-top: var(--s24); }
 .projs { padding-top: var(--s40); }
 .projs li { overflow: hidden; }
@@ -83,7 +82,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .colh { margin: 0 0 var(--s40); font-weight: normal; font-size: var(--fs-s); }
 .files { font-size: var(--fs-l); line-height: 1.25; }
 .files li { color: var(--mute); }
-.files li.here { color: var(--text); }
+.files li.here { color: var(--c-image); } /* Bilder des aktiven Artikels */
 .files button:hover { color: var(--c-image); }
 .files button { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .files .none { color: var(--mute); font-size: var(--fs-s); }
@@ -110,7 +109,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj .body h3 { font: inherit; font-weight: bold; }
 .proj .body > :last-child { margin-bottom: 0; }
 /* Absatz im Fokus: Rahmen wie die Nummernboxen (1 px), ohne die Zeilen zu verschieben */
-.proj.on .body .focus { outline: 1px solid var(--line); outline-offset: var(--s8); }
+.proj.on .body .focus { outline: 1px solid var(--c-image); outline-offset: var(--s8); }
 .proj.on .body a { color: var(--c-link); }
 .proj .body a:hover { text-decoration: underline; }
 
@@ -414,22 +413,8 @@ const projects = DATA.projects || [], pages = DATA.pages || {};
 /* =====================================================================
    Texte-Ansicht
    ===================================================================== */
-// PDF-Kachel «Please share»: eigene SVGs für Light (img/pdf-button-light.svg) und Dark (img/pdf-button-dark.svg).
-// «Tinte» und «Papier» werden zu CSS-Variablen: normal Tinte = Textfarbe, Papier = Hintergrund;
-// beim Hover Papier = Akzentfarbe, Tinte = hell (siehe .pdf:hover im CSS)
-async function loadPdfSvg(file, ink, paper) {
-  try {
-    const svg = (await (await fetch(file)).text()).replace(/<\?xml[^>]*>/, "");
-    return svg.replace(/<(path|rect)\b[^>]*>/g, tag => tag.replace(/(fill|stroke)="([^"]+)"/g, (m, attr, val) =>
-      val === ink ? `${attr}="var(--pdf-ink)"` : val === paper ? `${attr}="var(--pdf-paper)"` : m)) // <mask> bleibt unverändert
-      .replace("<svg ", '<svg aria-hidden="true" ');
-  } catch { return ""; }
-}
-const [pdfLight, pdfDark] = await Promise.all([
-  loadPdfSvg("img/pdf-button-light.svg", "black", "white"),
-  loadPdfSvg("img/pdf-button-dark.svg", "white", "black"),
-]);
-const pdfSvg = `<span class="pdf-light">${pdfLight}</span><span class="pdf-dark">${pdfDark}</span>`;
+// PDF-Kachel «Please share»: img/pdf-button.svg, in beiden Modi gleich; Hover = 80 % Deckkraft
+const pdfSvg = '<img src="img/pdf-button.svg" alt="" width="87" height="111">';
 
 // Auf- und Zuklappen mit Animation (.fold) und drehendem Pfeil
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
