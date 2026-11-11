@@ -1,31 +1,20 @@
 <!DOCTYPE html>
-<html lang="de" data-theme="light">
+<html lang="de" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Doxxing</title>
-<script>
-  // Akzentfarbe wechselt bei jedem Neuladen: Blau → Orange → Grün → Blau …
-  (function () {
-    const ACCENTS = [null, "#F10505", "#00E362"]; // null = Blau aus dem CSS
-    let i = 0;
-    try {
-      const prev = localStorage.getItem("site-accent"); // erster Besuch: Blau
-      i = prev === null ? 0 : ((+prev || 0) + 1) % ACCENTS.length;
-      localStorage.setItem("site-accent", i);
-    } catch {}
-    if (ACCENTS[i]) {
-      document.documentElement.style.setProperty("--accent", ACCENTS[i]);
-      document.documentElement.style.setProperty("--accent-ink", "#000"); // auf Orange/Grün schwarze Tinte
-    }
-  })();
-</script>
 <style>
 @font-face { font-family: "Pixelmix"; src: url("font/pixelmix.ttf"); }
 @font-face { font-family: "Antique Legacy"; src: url("font/AntiqueLegacy-Regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
 :root {
   --font: "Antique Legacy", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --bg: #fff; --text: #000; --mute: #b5b5b5; --line: #d4d4d4; --page: #efefef; --track: #f2f2f2; --accent: #0055FF; --accent-ink: #fff; /* Tinte auf Akzentfläche (PDF-Hover) */
+  --bg: #fff; --text: #000; --mute: #b5b5b5; --line: #d4d4d4; --page: #efefef; --track: #f2f2f2; --accent: #0055FF;
+  /* Hover-/Aktiv-Farben je Element */
+  --c-title: #FEFF00;   /* Titel + Nummer des aktiven Artikels, Artikelname in der Bildansicht */
+  --c-image: #F10506;   /* Bild-Dateinamen: Hover, aktives Bild in der Bildansicht */
+  --c-nav: #0055FF;     /* Navigation: Artikelliste, Dropdowns, Schalter */
+  --c-link: #00FB29;    /* Links im Text, «Ansehen» */
   --ok: #1fa25a; --warn: #e08a00;
   /* Abstände: nur diese Werte verwenden (8er-Regel) */
   --s2: 2px; --s4: 4px; --s8: 8px; --s16: 16px; --s24: 24px; --s40: 40px;
@@ -41,7 +30,7 @@
   --cur-next: url("img/cursor-next.svg") 12 12, e-resize;
   --cur-prev: url("img/cursor-prev.svg") 12 12, w-resize;
 }
-[data-theme="dark"] { --bg: #000000; --text: #E5E5E5; --mute: #575757; --line: #2b2b2b; --page: #1b1b1b; --track: #121212; --accent: #0055FF; --accent-ink: #E5E5E5;
+[data-theme="dark"] { --bg: #000000; --text: #E5E5E5; --mute: #575757; --line: #2b2b2b; --page: #1b1b1b; --track: #121212; --accent: #0055FF;
   --cur-next: url("img/cursor-next-dark.svg") 12 12, e-resize; --cur-prev: url("img/cursor-prev-dark.svg") 12 12, w-resize; }
 * { box-sizing: border-box; }
 html { color-scheme: light; }
@@ -49,7 +38,8 @@ html { color-scheme: light; }
 body { margin: 0; background: var(--bg); color: var(--text); font: var(--fs-s)/1.32 var(--font); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
 a { color: inherit; text-decoration: none; }
-a:hover, button.lnk:hover { color: var(--accent); }
+a:hover { color: var(--c-link); }
+button.lnk:hover { color: var(--c-nav); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hidden, [hidden] { display: none !important; }
 ul { list-style: none; margin: 0; padding: 0; }
@@ -75,9 +65,9 @@ ul { list-style: none; margin: 0; padding: 0; }
 .accin { padding: var(--s24) 0 var(--s40); hyphens: auto; -webkit-hyphens: auto; }
 .accin p { margin: 0 0 var(--s16); }
 .accin p:last-child { margin-bottom: 0; }
-.accin a:not(.pdf) { color: var(--accent); }
-.pdf { display: block; width: 87px; margin: 0 auto; --pdf-ink: var(--text); --pdf-paper: var(--bg); transition: transform .8s cubic-bezier(0, .96, 0, 1); }
-.pdf:hover { --pdf-ink: var(--accent-ink); --pdf-paper: var(--accent); transform: scale(.94); }
+.accin a:not(.pdf) { color: var(--c-link); }
+.pdf { display: block; width: 87px; margin: 0 auto; --pdf-ink: var(--text); --pdf-paper: var(--bg); transition: opacity .2s; }
+.pdf:hover { opacity: .8; }
 .pdf svg { display: block; width: 100%; height: auto; }
 .pdf .pdf-dark, [data-theme="dark"] .pdf .pdf-light { display: none; }
 [data-theme="dark"] .pdf .pdf-dark { display: block; }
@@ -87,14 +77,14 @@ ul { list-style: none; margin: 0; padding: 0; }
 .mline { display: block; overflow: hidden; }
 .mline > span { display: block; white-space: nowrap; }
 .projs .navrow { color: var(--mute); }
-.projs .navrow.on { color: var(--text); }
-.projs .navrow:hover { color: var(--accent); }
+.projs .navrow.on { color: var(--c-nav); }
+.projs .navrow:hover { color: var(--c-nav); }
 .projs:hover .navrow.on:not(:hover) { color: var(--mute); } /* nie zwei Namen gleichzeitig hervorgehoben */
 .colh { margin: 0 0 var(--s40); font-weight: normal; font-size: var(--fs-s); }
 .files { font-size: var(--fs-l); line-height: 1.25; }
 .files li { color: var(--mute); }
 .files li.here { color: var(--text); }
-.files button:hover { color: var(--accent); }
+.files button:hover { color: var(--c-image); }
 .files button { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .files .none { color: var(--mute); font-size: var(--fs-s); }
 .info { display: grid; grid-template-columns: 5.5em 1fr; margin: 0; }
@@ -103,12 +93,15 @@ ul { list-style: none; margin: 0; padding: 0; }
 .info dd { display: grid; overflow: hidden; }
 .info dd > span { grid-area: 1 / 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .info .sp { grid-column: 1 / -1; height: var(--s16); }
-.info a:hover { color: var(--accent); }
+.info a:hover { color: var(--c-link); }
 
-.text { width: 100%; max-width: var(--text-w); padding: var(--edge) 0; font-size: var(--fs-l); line-height: 1.25; }
-.proj { color: var(--mute); padding-bottom: var(--s40); }
+.text { width: 100%; max-width: var(--text-w); padding: 0 0 var(--edge); font-size: var(--fs-l); line-height: 1.25; }
+.proj { color: var(--mute); padding-bottom: var(--s16); } /* + 24 px über dem nächsten Titel = 40 px */
 .proj.on { color: var(--text); }
-.proj header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; margin-bottom: var(--s40); }
+/* Titel + Nummer bleiben oben stehen, solange man im Artikel ist; Verlauf dahinter für die Lesbarkeit */
+.proj header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; position: sticky; top: 0; z-index: 2;
+  padding: var(--edge) 0 var(--s40); background: linear-gradient(to bottom, var(--bg) 50%, transparent); }
+.proj.on header { color: var(--c-title); }
 .proj .nr { display: grid; place-items: center; width: calc(var(--fs-l) * 1.6); height: calc(var(--fs-l) * 1.6); border: 1px solid currentColor; font-size: var(--fs-s); }
 .proj:not(.on) .nr { border-color: var(--line); }
 .proj .sp { width: calc(var(--fs-l) * 1.6); }
@@ -118,7 +111,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .proj .body > :last-child { margin-bottom: 0; }
 /* Absatz im Fokus: Rahmen wie die Nummernboxen (1 px), ohne die Zeilen zu verschieben */
 .proj.on .body .focus { outline: 1px solid var(--line); outline-offset: var(--s8); }
-.proj.on .body a { color: var(--accent); }
+.proj.on .body a { color: var(--c-link); }
 .proj .body a:hover { text-decoration: underline; }
 
 /* Seitenübersicht oben rechts: Fläche = ganze Seite, Linie = aktuelle Position */
@@ -130,7 +123,7 @@ body[data-view="panels"] .minimap { display: none; }
 .sw { display: flex; gap: var(--s8); }
 .sw button { color: var(--mute); }
 .sw button.on { color: var(--text); }
-.sw button:hover { color: var(--accent); }
+.sw button:hover { color: var(--c-nav); }
 .sw .dot { display: inline-block; width: 6px; height: 6px; margin-left: var(--s4); vertical-align: middle; background: var(--mute); }
 .sw .dot.ok { background: var(--ok); } .sw .dot.warn { background: var(--warn); }
 
@@ -142,11 +135,11 @@ body[data-view="panels"] .minimap { display: none; }
 .ov-list { margin-top: var(--s8); }
 .ov-list li { overflow: hidden; }
 .ov-list li.gstart:not(:first-child) { margin-top: var(--s8); } /* Gruppen je Artikel */
-.ov-title { position: absolute; top: var(--edge); left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap; }
-/* wie die Artikelliste: grau, aktives Bild schwarz, Hover blau – nie zwei gleichzeitig hervorgehoben */
+.ov-title { position: absolute; top: var(--edge); left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap; color: var(--c-title); }
+/* grau, aktives Bild und Hover rot – nie zwei gleichzeitig hervorgehoben */
 .ov-list button { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--mute); }
-.ov-list button.on { color: var(--text); }
-.ov-list button:hover { color: var(--accent); }
+.ov-list button.on { color: var(--c-image); }
+.ov-list button:hover { color: var(--c-image); }
 .ov-list:hover button.on:not(:hover) { color: var(--mute); }
 .ov-img { position: absolute; inset: 0; display: grid; place-items: center; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 .ov-img img { pointer-events: none; -webkit-user-drag: none; }
@@ -236,7 +229,7 @@ body.drag .add { outline-color: var(--accent); color: var(--text); }
   .colBilder, .colInfo { display: none; }
   .projs ul { columns: 2; column-gap: var(--s16); }
   .pdf { margin: 0; }
-  .text { padding-top: var(--s24); max-width: none; }
+  .text { padding-top: 0; max-width: none; }
   .switches { left: var(--s16); bottom: var(--s16); background: var(--bg); padding: var(--s4) var(--s8) var(--s4) 0; }
   .panels { grid-template-columns: 1fr; padding: var(--s24) var(--s16); gap: var(--s24); }
   .ov-head { left: var(--s16); top: var(--s16); width: calc(100% - var(--s16) * 2); }
@@ -391,7 +384,7 @@ function setTheme(t) {
   document.documentElement.dataset.theme = t; save("site-theme", t);
   for (const b of $("#swTheme").children) b.classList.toggle("on", b.dataset.t === t);
 }
-setTheme(ls("site-theme", "light"));
+setTheme(ls("site-theme", "dark")); // Standard: Dark
 $("#swTheme").onclick = e => { const t = e.target.closest("button")?.dataset.t; if (t) setTheme(t); };
 
 let view = "texte", texteScroll = 0;
