@@ -1,6 +1,6 @@
 ---
 nr: 3
-titel: Doxing von Politiker:innen
+titel: Doxing von Prominenten
 autorin: Konrad Litschko
 datum: 2020
 quelle: https://taz.de/Doxing-von-PolitikerInnen/!5688368/
