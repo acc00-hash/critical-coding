@@ -10,8 +10,6 @@ Wie Hobbyermittler die Protagonisten des Sylt-Videos suchen. Seit dem rassistisc
 
 Eine junge Frau blickt ernst in die Kamera, ringt um Worte, sagt, dass sie nie gedacht hätte, zu einem Handyvideo von Sylt ein Statement abgeben zu müssen. Schließlich sei sie noch nie in Deutschland gewesen und spreche kein einziges Wort Deutsch. Aber jetzt, da sie unzählige Hassnachrichten erhalte, möchte sie eines klarstellen: "Die Frau in diesem Video. Das bin nicht ich."
 
-Eine junge Frau blickt ernst in die Kamera, ringt um Worte, sagt, dass sie nie gedacht hätte, zu einem Handyvideo von Sylt ein Statement abgeben zu müssen. Schließlich sei sie noch nie in Deutschland gewesen und spreche kein einziges Wort Deutsch. Aber jetzt, da sie unzählige Hassnachrichten erhalte, möchte sie eines klarstellen: "Die Frau in diesem Video. Das bin nicht ich."
-
 Die Frau, die sich am Wochenende gezwungen sah, diese Stellungnahme auf ihrem TikTok-Kanal hochzuladen, ist eine Modeinfluencerin aus Estland und trägt denselben Vornamen wie eine Frau, die in einem 14-sekündigen Clip zu sehen ist, der in Deutschland gerade viel diskutiert wird: dem Sylt-Video.
 
 
