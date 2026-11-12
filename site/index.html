@@ -374,7 +374,6 @@ const startHash = decodeURIComponent(location.hash);
 if (qs.has("led")) save("led-on", qs.get("led") === "0" ? "0" : "1");
 let ledOn = ls("led-on", "0") === "1";
 
-const SWITCH_DELAY = 450; // ms, so lange muss ein Abschnitt aktiv sein, bis die Panels wechseln
 
 /* =====================================================================
    Light / Dark, Texte / Panels
@@ -670,7 +669,7 @@ function setActiveProject(i) {
   projects.forEach((q, j) => q.navEl.classList.toggle("on", j === i));
   fillColumns(p);
   history.replaceState(null, "", location.pathname + location.search + "#" + p.slug);
-  scheduleLed(p);
+  applyLed(p); // sofort, ohne Wartezeit
 }
 
 /* =====================================================================
@@ -871,7 +870,9 @@ async function getBlob(item) {
   return item.blob;
 }
 
-const cache = new Map();
+const cache = new Map();  // Schlüssel → Promise (Dekodierung läuft oder ist fertig)
+const ready = new Map();  // Schlüssel → fertig dekodierte Frames (sofort, ohne await, verwendbar)
+const frameKey = (item, W, H, pixel) => [item.id, W, H, fit, pixel].join();
 function place(c, img, sw, sh, W, H, pixel) {
   let dw = W, dh = H;
   if (fit !== "stretch") {
@@ -883,7 +884,7 @@ function place(c, img, sw, sh, W, H, pixel) {
   c.drawImage(img, pixel ? Math.round(x) : x, pixel ? Math.round(y) : y, dw, dh);
 }
 function decode(item, W, H, pixel) {
-  const key = [item.id, W, H, fit, pixel].join();
+  const key = frameKey(item, W, H, pixel);
   if (cache.has(key)) return cache.get(key);
   const p = (async () => {
     const blob = await getBlob(item);
@@ -917,22 +918,52 @@ function decode(item, W, H, pixel) {
     return { frames, total };
   })();
   cache.set(key, p);
-  p.catch(() => cache.delete(key));
+  p.then(res => { if (cache.get(key) === p) ready.set(key, res); }, () => cache.delete(key));
   return p;
 }
-async function startVideo(item) {
-  const v = document.createElement("video");
+// Videos: pro Datei ein <video>-Element, das fertig geladen bereitliegt (auch von mehreren Screens geteilt).
+// Beim Wechsel muss so nichts mehr geladen werden – nur noch play().
+const videoPool = new Map(); // item.id → <video>
+const MAX_VIDEOS = 40;       // Browser erlauben nur eine begrenzte Zahl gleichzeitig geladener Videos
+function videoOf(item) {
+  let v = videoPool.get(item.id);
+  if (v) { videoPool.delete(item.id); videoPool.set(item.id, v); return v; } // zuletzt benutzt → ans Ende
+  v = document.createElement("video");
   v.muted = true; v.loop = true; v.playsInline = true; v.preload = "auto";
-  v.src = item.url;
-  try { await v.play(); }
-  catch (e) { stopVideo(v); throw new Error(item.name + ": Video kann nicht abgespielt werden. Am sichersten sind MP4 (H.264) oder WebM."); }
+  v.addEventListener("error", () => {
+    const msg = item.name + ": Video kann nicht abgespielt werden. Am sichersten sind MP4 (H.264) oder WebM.";
+    console.warn(msg); if (view === "panels") alert(msg);
+  });
+  // ganze Datei in den Speicher holen, damit beim Abspielen nichts nachgeladen wird
+  if (item.source === "content") {
+    getBlob(item).then(blob => { v.src = URL.createObjectURL(blob); v.load(); if (v.wanted) v.play().catch(() => {}); },
+                       () => { v.src = item.url; v.load(); if (v.wanted) v.play().catch(() => {}); });
+  } else { v.src = item.url; v.load(); }
+  videoPool.set(item.id, v);
+  // Pool begrenzen: älteste, gerade nicht gezeigte Videos entladen
+  if (videoPool.size > MAX_VIDEOS) for (const [id, old] of videoPool) {
+    if (videoPool.size <= MAX_VIDEOS) break;
+    if (!screens.some(sc => sc.cur && sc.cur.video === old)) { dropVideo(id); }
+  }
   return v;
 }
-function stopVideo(v) { if (v) { v.pause(); v.removeAttribute("src"); v.load(); } }
+function dropVideo(id) {
+  const v = videoPool.get(id); if (!v) return;
+  videoPool.delete(id); v.pause();
+  if (v.src.startsWith("blob:") && id.startsWith("c:")) URL.revokeObjectURL(v.src);
+  v.removeAttribute("src"); v.load();
+}
+function playVideo(v) { v.wanted = true; if (v.paused) { try { v.currentTime = 0; } catch {} v.play().catch(() => {}); } }
+// Video anhalten, wenn es auf keinem Screen mehr läuft (bleibt geladen)
+function releaseVideo(v, except) {
+  if (!v || screens.some(sc => sc !== except && sc.cur && sc.cur.video === v)) return;
+  v.wanted = false; v.pause();
+}
 
 function setCur(s, next) {
-  if (s.cur && s.cur.video && s.cur !== next) stopVideo(s.cur.video);
+  const prev = s.cur;
   s.cur = next; s.start = performance.now();
+  if (prev && prev.video && !(next && next.video === prev.video)) releaseVideo(prev.video, null);
 }
 function renderScreen(s, t) {
   const ctx = s.ctx;
@@ -948,23 +979,24 @@ function renderScreen(s, t) {
 }
 (function render(t) { for (const s of screens) renderScreen(s, t || 0); requestAnimationFrame(render); })();
 
-async function assign(s, id) {
+function assign(s, id) {
   if (id === s.selId && (s.cur || !id)) return; // läuft schon
   const my = ++s.token;
   s.selId = id || "";
   if (view === "panels") drawLibrary();
   const item = items.find(i => i.id === id);
   if (!item) { setCur(s, null); return; }
-  try {
-    const next = item.kind === "video" ? { video: await startVideo(item) } : await decode(item, s.w, s.h, s.pixel);
-    if (my !== s.token) { if (next.video) stopVideo(next.video); return; }
-    setCur(s, next);
-  } catch (e) {
+  // Video: Element liegt bereit → sofort umschalten
+  if (item.kind === "video") { const v = videoOf(item); setCur(s, { video: v }); playVideo(v); return; }
+  // Bild/GIF: ist es schon dekodiert (Normalfall dank Vorladen), ohne jede Wartezeit umschalten
+  const hit = ready.get(frameKey(item, s.w, s.h, s.pixel));
+  if (hit) { setCur(s, hit); return; }
+  decode(item, s.w, s.h, s.pixel).then(next => { if (my === s.token) setCur(s, next); }, e => {
     if (my !== s.token) return;
     setCur(s, null);
     console.warn(e.message);
     if (view === "panels") alert(e.message);
-  }
+  });
 }
 const reassign = s => { const id = s.selId; s.selId = "__"; assign(s, id); };
 
@@ -981,18 +1013,34 @@ function applyLed(src) {
   }
   preloadAround();
 }
-function scheduleLed(src) {
-  clearTimeout(ledTimer);
-  ledTimer = setTimeout(() => applyLed(src), SWITCH_DELAY);
+// Alle Animationen aller Artikel im Hintergrund vorbereiten: GIFs/Bilder fertig dekodieren,
+// Videos komplett laden. Der aktive Artikel und seine Nachbarn kommen zuerst dran.
+let warmRun = 0;
+async function warmAll() {
+  const run = ++warmRun;
+  const srcs = [...projects, ...Object.values(pages)];
+  const start = Math.max(0, activeIdx);
+  const order = srcs.map((_, i) => i).sort((a, b) => Math.abs(a - start) - Math.abs(b - start));
+  let videos = 0;
+  for (const i of order) {
+    const src = srcs[i];
+    for (const s of screens) {
+      const it = src.led && src.led[s.id] && itemByUrl(src.led[s.id]);
+      if (!it) continue;
+      if (it.kind === "image") { try { await decode(it, s.w, s.h, s.pixel); } catch {} }
+      else if (videoPool.has(it.id) || videos++ < MAX_VIDEOS - 5) videoOf(it);
+      else getBlob(it).catch(() => {}); // wenigstens die Datei schon holen
+      if (run !== warmRun) return; // Einstellungen geändert → neuer Durchlauf läuft
+    }
+  }
 }
-// Animationen der Nachbarprojekte schon vorbereiten
 function preloadAround() {
-  for (const j of [activeIdx + 1, activeIdx - 1]) {
+  for (const j of [activeIdx + 1, activeIdx - 1, activeIdx + 2]) {
     const p = projects[j]; if (!p) continue;
     for (const s of screens) {
       const it = p.led[s.id] && itemByUrl(p.led[s.id]);
       if (it && it.kind === "image") decode(it, s.w, s.h, s.pixel).catch(() => {});
-      else if (it) getBlob(it).catch(() => {});
+      else if (it) videoOf(it);
     }
   }
 }
@@ -1022,6 +1070,7 @@ function tile(it) {
   if (it.source === "upload") {
     b.append(el("button", { className: "del", textContent: "×", title: "Löschen", onclick: async () => {
       await store("readwrite", st => st.delete(it.id));
+      dropVideo(it.id);
       URL.revokeObjectURL(it.url);
       items = items.filter(x => x !== it);
       for (const s of screens) if (s.selId === it.id) assign(s, "");
@@ -1075,8 +1124,8 @@ addEventListener("drop", e => { if (view !== "panels" || !hasFiles(e)) return; e
 
 /* ---- Einstellungen im Steuerpult ---- */
 $("#fit").value = fit;
-$("#fit").onchange = e => { fit = e.target.value; save("led-fit", fit); cache.clear(); screens.forEach(reassign); };
-$("#pixel").onchange = e => { active.pixel = e.target.checked; save("led-pixel-" + active.id, active.pixel ? "1" : "0"); reassign(active); };
+$("#fit").onchange = e => { fit = e.target.value; save("led-fit", fit); cache.clear(); ready.clear(); screens.forEach(reassign); warmAll(); };
+$("#pixel").onchange = e => { active.pixel = e.target.checked; save("led-pixel-" + active.id, active.pixel ? "1" : "0"); reassign(active); warmAll(); };
 $("#black").onclick = () => manualAssign(active, "");
 $("#blackAll").onclick = () => { manual = true; updateDrive(); screens.forEach(s => assign(s, "")); };
 
@@ -1192,6 +1241,7 @@ const hashIdx = projects.findIndex(p => "#" + p.slug === startHash);
 if (hashIdx > 0 && startView === "texte") { scrollToProject(hashIdx); }
 if (startView === "texte") { activeIdx = -1; onScroll(); if (projects[activeIdx]) applyLed(projects[activeIdx]); }
 else applyLed(projects[0]);
+warmAll(); // alle Animationen im Hintergrund vorbereiten, damit jeder Wechsel sofort passiert
 </script>
 </body>
 </html>
