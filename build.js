@@ -11,6 +11,8 @@ const CONTENT = path.join(ROOT, "content");
 const OUT = path.join(ROOT, "dist");
 
 const SCREENS = ["wand", "e1", "e2", "e3", "e4"];
+// Erlaubte Dateinamen (ohne Endung) bzw. Schlüssel unter «led:» je Screen
+const NAMES = { wand: ["wall", "wand"], e1: ["e1"], e2: ["e2"], e3: ["e3"], e4: ["e4"] };
 const IMG = /\.(jpe?g|png|gif|webp|avif|svg)$/i;
 const LED = /\.(gif|png|apng|jpe?g|webp|mp4|m4v|webm|mov)$/i;
 const BLACK = /^(schwarz|black|-|none|aus)?$/i;
@@ -71,7 +73,9 @@ function readLed(dir, folder, meta) {
   const files = list(ledDir, LED);
   const out = {};
   for (const id of SCREENS) {
-    const given = meta.led && typeof meta.led === "object" ? meta.led[id] : undefined;
+    const led = meta.led && typeof meta.led === "object" ? meta.led : {};
+    const key = NAMES[id].find(n => led[n] !== undefined);
+    const given = key ? led[key] : undefined;
     let file = null;
     if (given !== undefined) {
       if (!BLACK.test(given)) {
@@ -79,7 +83,7 @@ function readLed(dir, folder, meta) {
         else warn(`${folder}: LED-Datei «${given}» für ${id} fehlt im Ordner led/`);
       }
     } else {
-      file = files.find(f => f.replace(/\.[^.]+$/, "").toLowerCase() === id) || null;
+      file = files.find(f => NAMES[id].includes(f.replace(/\.[^.]+$/, "").toLowerCase())) || null;
     }
     out[id] = file ? url(folder, "led", file) : null;
   }
